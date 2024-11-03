@@ -2,8 +2,12 @@ const std = @import("std");
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
-
     const optimize = b.standardOptimizeOption(.{});
+
+    const vaxis_dep = b.dependency("vaxis", .{
+        .target = target,
+        .optimize = optimize,
+    });
 
     const exe = b.addExecutable(.{
         .name = "cat-pdf",
@@ -11,6 +15,7 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+    exe.root_module.addImport("vaxis", vaxis_dep.module("vaxis"));
 
     const config = b.addModule("config", .{ .root_source_file = b.path("config.zig") });
     exe.root_module.addImport("config", config);
