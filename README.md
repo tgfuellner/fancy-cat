@@ -9,6 +9,7 @@ A (blazingly-fast) PDF viewer for terminals using the kitty image protocol (writ
 ### Requirements
 - Terminal emulator with the kitty image protocol (e.g. kitty, ghostty)
 - [mupdf](https://mupdf.readthedocs.io/en/latest/quick-start-guide.html)
+- [libfswatch](https://github.com/emcrisostomo/fswatch)
 - Zig
 ### Build
 > [!IMPORTANT]

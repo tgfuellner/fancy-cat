@@ -3,6 +3,7 @@ const vaxis = @import("vaxis");
 const c = @cImport({
     @cInclude("mupdf/fitz.h");
     @cInclude("mupdf/pdf.h");
+    @cInclude("libfswatch/c/libfswatch.h");
 });
 
 pub const panic = vaxis.panic_handler;
