@@ -10,15 +10,7 @@ pub const panic = vaxis.panic_handler;
 
 const Event = union(enum) {
     key_press: vaxis.Key,
-    key_release: vaxis.Key,
     mouse: vaxis.Mouse,
-    focus_in,
-    focus_out,
-    paste_start,
-    paste_end,
-    paste: []const u8,
-    color_report: vaxis.Color.Report,
-    color_scheme: vaxis.Color.Scheme,
     winsize: vaxis.Winsize,
 };
 
