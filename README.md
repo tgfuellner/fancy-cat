@@ -8,7 +8,6 @@ A (blazingly-fast) PDF viewer for terminals using the Kitty image protocol (writ
 ### Requirements
 - Terminal emulator with the Kitty image protocol (e.g. Kitty, WezTerm, Konsole, etc.)
 - [mupdf](https://mupdf.readthedocs.io/en/latest/quick-start-guide.html)
-- [libfswatch](https://github.com/emcrisostomo/fswatch)
 - Zig
 ### Build
 > [!IMPORTANT]
