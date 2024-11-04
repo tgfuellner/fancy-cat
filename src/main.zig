@@ -1,9 +1,9 @@
 const std = @import("std");
 const vaxis = @import("vaxis");
+const fzwatch = @import("fzwatch");
 const c = @cImport({
     @cInclude("mupdf/fitz.h");
     @cInclude("mupdf/pdf.h");
-    @cInclude("libfswatch/c/libfswatch.h");
 });
 
 pub const panic = vaxis.panic_handler;
@@ -28,12 +28,12 @@ const FileReader = struct {
     tty: vaxis.Tty,
     vx: vaxis.Vaxis,
     mouse: ?vaxis.Mouse,
-    current_page: u16,
+    current_page_number: u16,
     path: []const u8,
     ctx: [*c]c.fz_context,
     doc: [*c]c.fz_document,
     total_pages: u16,
-    current_image: ?vaxis.Image,
+    current_page: ?vaxis.Image,
 
     pub fn init(allocator: std.mem.Allocator, args: [][]const u8) !FileReader {
         const ctx = c.fz_new_context(null, null, c.FZ_STORE_UNLIMITED) orelse {
@@ -52,7 +52,7 @@ const FileReader = struct {
         errdefer c.fz_drop_document(ctx, doc);
 
         const total_pages = @as(u16, @intCast(c.fz_count_pages(ctx, doc)));
-        const current_page = blk: {
+        const current_page_number = blk: {
             if (args.len == 3) {
                 const page = try std.fmt.parseInt(u16, args[2], 10);
                 if (page < 1 or page > total_pages) {
@@ -71,17 +71,17 @@ const FileReader = struct {
             .tty = try vaxis.Tty.init(),
             .vx = try vaxis.init(allocator, .{}),
             .mouse = null,
-            .current_page = current_page,
+            .current_page_number = current_page_number,
             .path = path,
             .ctx = ctx,
             .doc = doc,
             .total_pages = total_pages,
-            .current_image = null,
+            .current_page = null,
         };
     }
 
     pub fn deinit(self: *FileReader) void {
-        if (self.current_image) |img| {
+        if (self.current_page) |img| {
             self.vx.freeImage(self.tty.anyWriter(), img.id);
         }
         c.fz_drop_document(self.ctx, self.doc);
@@ -122,19 +122,19 @@ const FileReader = struct {
                 if (key.matches('c', .{ .ctrl = true })) {
                     self.should_quit = true;
                 } else if (key.matches('j', .{})) {
-                    if (self.current_page < self.total_pages - 1) {
-                        self.current_page += 1;
-                        if (self.current_image) |img| {
+                    if (self.current_page_number < self.total_pages - 1) {
+                        self.current_page_number += 1;
+                        if (self.current_page) |img| {
                             self.vx.freeImage(self.tty.anyWriter(), img.id);
-                            self.current_image = null;
+                            self.current_page = null;
                         }
                     }
                 } else if (key.matches('k', .{})) {
-                    if (self.current_page > 0) {
-                        self.current_page -= 1;
-                        if (self.current_image) |img| {
+                    if (self.current_page_number > 0) {
+                        self.current_page_number -= 1;
+                        if (self.current_page) |img| {
                             self.vx.freeImage(self.tty.anyWriter(), img.id);
-                            self.current_image = null;
+                            self.current_page = null;
                         }
                     }
                 }
@@ -149,7 +149,7 @@ const FileReader = struct {
         const win = self.vx.window();
         win.clear();
 
-        if (self.current_image == null) {
+        if (self.current_page == null) {
             var ctm = c.fz_scale(1.5, 1.5);
             ctm = c.fz_pre_translate(ctm, 0, 0);
             ctm = c.fz_pre_rotate(ctm, 0);
@@ -157,7 +157,7 @@ const FileReader = struct {
             const pix = c.fz_new_pixmap_from_page_number(
                 self.ctx,
                 self.doc,
-                self.current_page,
+                self.current_page_number,
                 ctm,
                 c.fz_device_rgb(self.ctx),
                 0,
@@ -177,7 +177,7 @@ const FileReader = struct {
             );
             defer img.deinit();
 
-            self.current_image = try self.vx.transmitImage(
+            self.current_page = try self.vx.transmitImage(
                 self.allocator,
                 self.tty.anyWriter(),
                 &img,
@@ -185,7 +185,7 @@ const FileReader = struct {
             );
         }
 
-        if (self.current_image) |img| {
+        if (self.current_page) |img| {
             const dims = try img.cellSize(win);
             const center = vaxis.widgets.alignment.center(win, dims.cols, dims.rows);
             try img.draw(center, .{ .scale = .contain });

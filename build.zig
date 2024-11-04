@@ -8,14 +8,20 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+    const fzwatch_dep = b.dependency("fzwatch", .{
+        .target = target,
+        .optimize = optimize,
+    });
 
     const exe = b.addExecutable(.{
-        .name = "cat-pdf",
+        .name = "fancy-cat",
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });
+
     exe.root_module.addImport("vaxis", vaxis_dep.module("vaxis"));
+    exe.root_module.addImport("fzwatch", fzwatch_dep.module("fzwatch"));
 
     const config = b.addModule("config", .{ .root_source_file = b.path("config.zig") });
     exe.root_module.addImport("config", config);
