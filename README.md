@@ -4,6 +4,12 @@ A (blazingly-fast) PDF viewer for terminals using the Kitty image protocol (writ
 [^1]: This demo shows me editing a Typst file that automatically compiles with each change, prompting fancy-cat to re-render whenever the PDF updates.
 > [!NOTE]  
 > This project is under active development
+## Usage
+```
+next: j
+prev: k
+quit: ctrl+c
+```
 ## Instructions
 ### Requirements
 - Terminal emulator with the Kitty image protocol (e.g. Kitty, WezTerm, Konsole, etc.)
