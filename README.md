@@ -14,11 +14,15 @@ quit: ctrl+c
 ### Requirements
 - Terminal emulator with the Kitty image protocol (e.g. Kitty, WezTerm, Konsole, etc.)
 - [mupdf](https://mupdf.readthedocs.io/en/latest/quick-start-guide.html)
-- Zig
+#### MacOS
+``` sh
+brew install mupdf
+```
+#### Linux
+``` sh
+apt install mupdf
+```
 ### Build
-> [!IMPORTANT]
-> At the moment there is no dependency manager, so you will need to manually install the requirements.
-For the Zig dependencies you can do:
 ```sh
 zig build --fetch
 ```
@@ -31,3 +35,4 @@ zig build run -- <path-to-pdf> <optional-page-number>
 - [x] Navigate pages
 - [ ] Zoom
 - [ ] Ghostty support
+- [ ] Cache
