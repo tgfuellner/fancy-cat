@@ -12,6 +12,11 @@ A (blazingly-fast) PDF viewer for terminals using the Kitty image protocol (writ
 ### Build
 > [!IMPORTANT]
 > At the moment there is no dependency manager, so you will need to manually install the requirements.
+For the Zig dependencies you can do:
+```sh
+zig build --fetch
+```
+### Run
 ```
 zig build run -- <path-to-pdf> <optional-page-number>
 ```
