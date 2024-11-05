@@ -8,7 +8,7 @@
         },
         .fzwatch = .{
             .url = "https://github.com/freref/fzwatch/archive/refs/tags/v0.1.0.tar.gz",
-            .hash = "1220b376a23bef8aaea537f5db894d8a5663181a53ce965a90695486d572b78dda70",
+            .hash = "1220848765bb53ab8b96ddfc3b6f37dd376d0bc781180bffd2a64ddd96c675b456c6",
         },
     },
     .paths = .{

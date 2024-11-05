@@ -103,7 +103,7 @@ const FileReader = struct {
     }
 
     fn watcherThread(watcher: *fzwatch.Watcher) !void {
-        try watcher.start();
+        try watcher.start(.{ .latency = config.latency });
     }
 
     pub fn run(self: *FileReader) !void {
