@@ -62,7 +62,7 @@ const FileReader = struct {
         };
 
         var watcher: ?fzwatch.Watcher = null;
-        if (config.file_monitor) {
+        if (config.FileMonitor.enabled) {
             watcher = try fzwatch.Watcher.init(allocator);
             if (watcher) |*w| try w.addFile(path);
         }
@@ -103,7 +103,7 @@ const FileReader = struct {
     }
 
     fn watcherThread(watcher: *fzwatch.Watcher) !void {
-        try watcher.start(.{ .latency = config.latency });
+        try watcher.start(.{ .latency = config.FileMonitor.latency });
     }
 
     pub fn run(self: *FileReader) !void {
@@ -117,7 +117,7 @@ const FileReader = struct {
         try self.vx.queryTerminal(self.tty.anyWriter(), 1 * std.time.ns_per_s);
         try self.vx.setMouseMode(self.tty.anyWriter(), true);
 
-        if (config.file_monitor) {
+        if (config.FileMonitor.enabled) {
             if (self.watcher) |*w| {
                 w.setCallback(callback, &loop);
                 self.thread = try std.Thread.spawn(.{}, watcherThread, .{w});
