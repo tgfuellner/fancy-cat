@@ -142,9 +142,9 @@ const FileReader = struct {
     pub fn update(self: *FileReader, event: Event) !void {
         switch (event) {
             .key_press => |key| {
-                if (key.matches('c', .{ .ctrl = true })) {
+                if (key.matches(config.KeyMap.quit.key, config.KeyMap.quit.modifiers)) {
                     self.should_quit = true;
-                } else if (key.matches('j', .{})) {
+                } else if (key.matches(config.KeyMap.next.key, config.KeyMap.next.modifiers)) {
                     if (self.current_page_number < self.total_pages - 1) {
                         self.current_page_number += 1;
                         if (self.current_page) |img| {
@@ -152,7 +152,7 @@ const FileReader = struct {
                             self.current_page = null;
                         }
                     }
-                } else if (key.matches('k', .{})) {
+                } else if (key.matches(config.KeyMap.prev.key, config.KeyMap.prev.modifiers)) {
                     if (self.current_page_number > 0) {
                         self.current_page_number -= 1;
                         if (self.current_page) |img| {

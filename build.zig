@@ -23,7 +23,7 @@ pub fn build(b: *std.Build) void {
     exe.root_module.addImport("vaxis", vaxis_dep.module("vaxis"));
     exe.root_module.addImport("fzwatch", fzwatch_dep.module("fzwatch"));
 
-    const config = b.addModule("config", .{ .root_source_file = b.path("config.zig") });
+    const config = b.addModule("config", .{ .root_source_file = b.path("src/config.zig") });
     exe.root_module.addImport("config", config);
 
     if (target.result.os.tag == .macos) {
