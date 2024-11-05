@@ -2,13 +2,13 @@
     .name = "fancy-cat",
     .version = "0.0.0",
     .dependencies = .{
-        .fzwatch = .{
-            .url = "https://github.com/freref/fzwatch/archive/refs/tags/v0.1.0.tar.gz",
-            .hash = "1220435eabc2305c5a7bf14ef56821ff32432a2ea8e3a629ec296d020d3a8431ca60",
-        },
         .vaxis = .{
             .url = "https://github.com/rockorager/libvaxis/archive/refs/tags/v0.5.0.tar.gz",
             .hash = "122059b9c45b26d5a256124b545b12af374840751a930bafba5f49a5f587f52e0434",
+        },
+        .fzwatch = .{
+            .url = "https://github.com/freref/fzwatch/archive/refs/tags/v0.1.0.tar.gz",
+            .hash = "1220b376a23bef8aaea537f5db894d8a5663181a53ce965a90695486d572b78dda70",
         },
     },
     .paths = .{

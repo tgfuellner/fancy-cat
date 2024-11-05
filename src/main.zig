@@ -1,6 +1,7 @@
 const std = @import("std");
 const vaxis = @import("vaxis");
 const fzwatch = @import("fzwatch");
+const config = @import("config");
 const c = @cImport({
     @cInclude("mupdf/fitz.h");
     @cInclude("mupdf/pdf.h");
@@ -12,6 +13,7 @@ const Event = union(enum) {
     key_press: vaxis.Key,
     mouse: vaxis.Mouse,
     winsize: vaxis.Winsize,
+    file_changed,
 };
 
 const FileReader = struct {
@@ -26,6 +28,8 @@ const FileReader = struct {
     doc: [*c]c.fz_document,
     total_pages: u16,
     current_page: ?vaxis.Image,
+    watcher: ?fzwatch.Watcher,
+    thread: ?std.Thread,
 
     pub fn init(allocator: std.mem.Allocator, args: [][]const u8) !FileReader {
         const ctx = c.fz_new_context(null, null, c.FZ_STORE_UNLIMITED) orelse {
@@ -57,6 +61,12 @@ const FileReader = struct {
             break :blk 0;
         };
 
+        var watcher: ?fzwatch.Watcher = null;
+        if (config.file_monitor) {
+            watcher = try fzwatch.Watcher.init(allocator);
+            if (watcher) |*w| try w.addFile(path);
+        }
+
         return .{
             .allocator = allocator,
             .should_quit = false,
@@ -69,17 +79,31 @@ const FileReader = struct {
             .doc = doc,
             .total_pages = total_pages,
             .current_page = null,
+            .watcher = watcher,
+            .thread = null,
         };
     }
 
     pub fn deinit(self: *FileReader) void {
-        if (self.current_page) |img| {
-            self.vx.freeImage(self.tty.anyWriter(), img.id);
-        }
+        if (self.watcher) |*w| w.deinit();
+        if (self.current_page) |img| self.vx.freeImage(self.tty.anyWriter(), img.id);
         c.fz_drop_document(self.ctx, self.doc);
         c.fz_drop_context(self.ctx);
         self.vx.deinit(self.allocator, self.tty.anyWriter());
         self.tty.deinit();
+    }
+
+    fn callback(context: ?*anyopaque, event: fzwatch.Event) void {
+        switch (event) {
+            .modified => {
+                const loop = @as(*vaxis.Loop(Event), @ptrCast(@alignCast(context.?)));
+                loop.postEvent(Event.file_changed);
+            },
+        }
+    }
+
+    fn watcherThread(watcher: *fzwatch.Watcher) !void {
+        try watcher.start();
     }
 
     pub fn run(self: *FileReader) !void {
@@ -92,6 +116,13 @@ const FileReader = struct {
         try self.vx.enterAltScreen(self.tty.anyWriter());
         try self.vx.queryTerminal(self.tty.anyWriter(), 1 * std.time.ns_per_s);
         try self.vx.setMouseMode(self.tty.anyWriter(), true);
+
+        if (config.file_monitor) {
+            if (self.watcher) |*w| {
+                w.setCallback(callback, &loop);
+                self.thread = try std.Thread.spawn(.{}, watcherThread, .{w});
+            }
+        }
 
         while (!self.should_quit) {
             loop.pollEvent();
@@ -133,7 +164,20 @@ const FileReader = struct {
             },
             .mouse => |mouse| self.mouse = mouse,
             .winsize => |ws| try self.vx.resize(self.allocator, self.tty.anyWriter(), ws),
-            else => {},
+            .file_changed => {
+                if (self.current_page) |img| {
+                    self.vx.freeImage(self.tty.anyWriter(), img.id);
+                    self.current_page = null;
+                }
+                c.fz_drop_document(self.ctx, self.doc);
+                self.doc = c.fz_open_document(self.ctx, self.path.ptr) orelse {
+                    std.debug.print("Failed to reload document\n", .{});
+                    return;
+                };
+                self.draw() catch |err| {
+                    std.debug.print("Draw error: {}\n", .{err});
+                };
+            },
         }
     }
 
