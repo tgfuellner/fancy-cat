@@ -26,12 +26,11 @@ pub fn build(b: *std.Build) void {
     const config = b.addModule("config", .{ .root_source_file = b.path("config.zig") });
     exe.root_module.addImport("config", config);
 
-    exe.addIncludePath(.{ .cwd_relative = "/opt/homebrew/Cellar/fswatch/1.17.1/include" });
-    exe.addLibraryPath(.{ .cwd_relative = "/opt/homebrew/Cellar/fswatch/1.17.1/lib" });
-    exe.addIncludePath(.{ .cwd_relative = "/opt/homebrew/Cellar/mupdf/1.24.9/include" });
-    exe.addLibraryPath(.{ .cwd_relative = "/opt/homebrew/Cellar/mupdf/1.24.9/lib" });
+    if (target.result.os.tag == .macos) {
+        exe.addIncludePath(.{ .cwd_relative = "/opt/homebrew/include" });
+        exe.addLibraryPath(.{ .cwd_relative = "/opt/homebrew/lib" });
+    }
 
-    exe.linkSystemLibrary("libfswatch");
     exe.linkSystemLibrary("mupdf");
     exe.linkSystemLibrary("z");
     exe.linkLibC();
