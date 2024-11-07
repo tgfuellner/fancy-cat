@@ -10,7 +10,7 @@ next: j
 prev: k
 quit: ctrl+c
 ```
-## Instructions
+## Build Instructions
 ### Requirements
 - Terminal emulator with the Kitty image protocol (e.g. Kitty, WezTerm, Konsole, etc.)
 - [mupdf](https://mupdf.readthedocs.io/en/latest/quick-start-guide.html)
@@ -36,3 +36,4 @@ zig build run -- <path-to-pdf> <optional-page-number>
 - [ ] Zoom
 - [ ] Ghostty support
 - [ ] Cache
+- [ ] Double buffering

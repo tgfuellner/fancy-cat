@@ -26,6 +26,7 @@ const FileReader = struct {
     path: []const u8,
     ctx: [*c]c.fz_context,
     doc: [*c]c.fz_document,
+    temp_doc: ?[*c]c.fz_document,
     total_pages: u16,
     current_page: ?vaxis.Image,
     watcher: ?fzwatch.Watcher,
@@ -72,14 +73,15 @@ const FileReader = struct {
             .should_quit = false,
             .tty = try vaxis.Tty.init(),
             .vx = try vaxis.init(allocator, .{}),
-            .mouse = null,
             .current_page_number = current_page_number,
             .path = path,
             .ctx = ctx,
             .doc = doc,
             .total_pages = total_pages,
-            .current_page = null,
             .watcher = watcher,
+            .current_page = null,
+            .temp_doc = null,
+            .mouse = null,
             .thread = null,
         };
     }
@@ -87,6 +89,7 @@ const FileReader = struct {
     pub fn deinit(self: *FileReader) void {
         if (self.watcher) |*w| w.deinit();
         if (self.current_page) |img| self.vx.freeImage(self.tty.anyWriter(), img.id);
+        if (self.temp_doc) |doc| c.fz_drop_document(self.ctx, doc);
         c.fz_drop_document(self.ctx, self.doc);
         c.fz_drop_context(self.ctx);
         self.vx.deinit(self.allocator, self.tty.anyWriter());
@@ -165,18 +168,12 @@ const FileReader = struct {
             .mouse => |mouse| self.mouse = mouse,
             .winsize => |ws| try self.vx.resize(self.allocator, self.tty.anyWriter(), ws),
             .file_changed => {
-                if (self.current_page) |img| {
-                    self.vx.freeImage(self.tty.anyWriter(), img.id);
-                    self.current_page = null;
-                }
-                c.fz_drop_document(self.ctx, self.doc);
-                self.doc = c.fz_open_document(self.ctx, self.path.ptr) orelse {
+                self.temp_doc = c.fz_open_document(self.ctx, self.path.ptr) orelse {
                     std.debug.print("Failed to reload document\n", .{});
                     return;
                 };
-                self.draw() catch |err| {
-                    std.debug.print("Draw error: {}\n", .{err});
-                };
+                // XXX check if this can be done more efficient rather than check on every file change
+                self.total_pages = @as(u16, @intCast(c.fz_count_pages(self.ctx, self.temp_doc.?)));
             },
         }
     }
@@ -184,6 +181,12 @@ const FileReader = struct {
     pub fn draw(self: *FileReader) !void {
         const win = self.vx.window();
         win.clear();
+
+        if (self.temp_doc) |doc| {
+            self.doc = doc;
+            self.temp_doc = null;
+            self.current_page = null;
+        }
 
         if (self.current_page == null) {
             var ctm = c.fz_scale(1.5, 1.5);
