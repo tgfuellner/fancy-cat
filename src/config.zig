@@ -1,3 +1,5 @@
+// Config file for fancy-cat
+
 pub const KeyMap = struct {
     // Next page
     pub const next = .{ .key = 'j', .modifiers = .{} };

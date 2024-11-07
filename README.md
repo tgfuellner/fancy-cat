@@ -5,11 +5,7 @@ A (blazingly-fast) PDF viewer for terminals using the Kitty image protocol (writ
 > [!NOTE]  
 > This project is under active development
 ## Usage
-```
-next: j
-prev: k
-quit: ctrl+c
-```
+The keymappings and other options can be found and changed in the config file [here](./src/main.zig).
 ## Build Instructions
 ### Requirements
 - Terminal emulator with the Kitty image protocol (e.g. Kitty, WezTerm, Konsole, etc.)

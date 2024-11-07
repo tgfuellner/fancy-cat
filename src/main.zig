@@ -176,6 +176,7 @@ const FileReader = struct {
                     return;
                 };
                 // XXX check if this can be done more efficient rather than check on every file change
+                // probably check if file attribute has changed
                 self.total_pages = @as(u16, @intCast(c.fz_count_pages(self.ctx, self.temp_doc.?)));
             },
         }
@@ -241,7 +242,7 @@ pub fn main() !void {
 
     if (args.len < 2 or args.len > 3) {
         const stderr = std.io.getStdErr().writer();
-        try stderr.writeAll("Usage: pdf-viewer <path-to-pdf> <optional-page-number>\n");
+        try stderr.writeAll("Usage: fancy-cat <path-to-pdf> <optional-page-number>\n");
         return error.InvalidArguments;
     }
 
