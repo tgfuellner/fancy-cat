@@ -30,6 +30,8 @@ zig build run -- <path-to-pdf> <optional-page-number>
 - [x] Filewatch
 - [x] Navigate pages
 - [x] Double buffering
+- [x] MacOS support
+- [ ] Linux support
 - [ ] Zoom
 - [ ] Ghostty support
 - [ ] Cache
