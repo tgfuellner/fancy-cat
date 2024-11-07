@@ -39,6 +39,9 @@ const FileReader = struct {
         };
         errdefer c.fz_drop_context(ctx);
         c.fz_register_document_handlers(ctx);
+        // XXX figure out errors instead of ignoring them lol
+        c.fz_set_error_callback(ctx, null, null);
+        c.fz_set_warning_callback(ctx, null, null);
 
         const path = args[1];
         const doc = c.fz_open_document(ctx, path.ptr) orelse {
