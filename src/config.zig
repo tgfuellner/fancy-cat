@@ -19,8 +19,6 @@ pub const FileMonitor = struct {
 /// Cache will be used to cache pages for faster rendering
 pub const Cache = struct {
     pub const enabled: bool = true;
-    // Maximum amount of recently visited pages to cache
-    pub const recent_pages: usize = 1;
     // Maximum amount of pages to cache ahead
     pub const next_pages: usize = 1;
     // Maximum amount of pages to cache behind
