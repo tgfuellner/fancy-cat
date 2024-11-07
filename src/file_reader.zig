@@ -2,7 +2,6 @@ const std = @import("std");
 const vaxis = @import("vaxis");
 const fzwatch = @import("fzwatch");
 const config = @import("config");
-const helpers = @import("helpers.zig");
 const c = @cImport({
     @cInclude("mupdf/fitz.h");
     @cInclude("mupdf/pdf.h");
