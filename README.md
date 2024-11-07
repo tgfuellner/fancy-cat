@@ -33,7 +33,7 @@ zig build run -- <path-to-pdf> <optional-page-number>
 ## Features
 - [x] Filewatch
 - [x] Navigate pages
+- [x] Double buffering
 - [ ] Zoom
 - [ ] Ghostty support
 - [ ] Cache
-- [ ] Double buffering
