@@ -7,6 +7,8 @@ const c = @cImport({
     @cInclude("mupdf/pdf.h");
 });
 
+pub const panic = vaxis.panic_handler;
+
 const Event = union(enum) {
     key_press: vaxis.Key,
     mouse: vaxis.Mouse,

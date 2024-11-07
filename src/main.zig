@@ -1,14 +1,5 @@
 const std = @import("std");
-const vaxis = @import("vaxis");
-const fzwatch = @import("fzwatch");
-const config = @import("config");
 const FileReader = @import("file_reader.zig").FileReader;
-const c = @cImport({
-    @cInclude("mupdf/fitz.h");
-    @cInclude("mupdf/pdf.h");
-});
-
-pub const panic = vaxis.panic_handler;
 
 pub fn main() !void {
     const args = try std.process.argsAlloc(std.heap.page_allocator);
