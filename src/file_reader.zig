@@ -146,28 +146,32 @@ pub const FileReader = struct {
         }
     }
 
+    fn handleKeyStroke(self: *FileReader, key: vaxis.Key) !void {
+        if (key.matches(config.KeyMap.quit.key, config.KeyMap.quit.modifiers)) {
+            self.should_quit = true;
+        } else if (key.matches(config.KeyMap.next.key, config.KeyMap.next.modifiers)) {
+            if (self.current_page_number < self.total_pages - 1) {
+                self.current_page_number += 1;
+                if (self.current_page) |img| {
+                    self.vx.freeImage(self.tty.anyWriter(), img.id);
+                    self.current_page = null;
+                }
+            }
+        } else if (key.matches(config.KeyMap.prev.key, config.KeyMap.prev.modifiers)) {
+            if (self.current_page_number > 0) {
+                self.current_page_number -= 1;
+                if (self.current_page) |img| {
+                    self.vx.freeImage(self.tty.anyWriter(), img.id);
+                    self.current_page = null;
+                }
+            }
+        }
+    }
+
     pub fn update(self: *FileReader, event: Event) !void {
         switch (event) {
             .key_press => |key| {
-                if (key.matches(config.KeyMap.quit.key, config.KeyMap.quit.modifiers)) {
-                    self.should_quit = true;
-                } else if (key.matches(config.KeyMap.next.key, config.KeyMap.next.modifiers)) {
-                    if (self.current_page_number < self.total_pages - 1) {
-                        self.current_page_number += 1;
-                        if (self.current_page) |img| {
-                            self.vx.freeImage(self.tty.anyWriter(), img.id);
-                            self.current_page = null;
-                        }
-                    }
-                } else if (key.matches(config.KeyMap.prev.key, config.KeyMap.prev.modifiers)) {
-                    if (self.current_page_number > 0) {
-                        self.current_page_number -= 1;
-                        if (self.current_page) |img| {
-                            self.vx.freeImage(self.tty.anyWriter(), img.id);
-                            self.current_page = null;
-                        }
-                    }
-                }
+                try self.handleKeyStroke(key);
             },
             .mouse => |mouse| self.mouse = mouse,
             .winsize => |ws| try self.vx.resize(self.allocator, self.tty.anyWriter(), ws),
@@ -194,11 +198,30 @@ pub const FileReader = struct {
         }
 
         if (self.current_page == null) {
-            var img = try helpers.createImg(
+            var ctm = c.fz_scale(1.5, 1.5);
+            ctm = c.fz_pre_translate(ctm, 0, 0);
+            ctm = c.fz_pre_rotate(ctm, 0);
+
+            const pix = c.fz_new_pixmap_from_page_number(
                 self.ctx,
                 self.doc,
                 self.current_page_number,
+                ctm,
+                c.fz_device_rgb(self.ctx),
+                0,
+            ) orelse return error.PixmapCreationFailed;
+            defer c.fz_drop_pixmap(self.ctx, pix);
+
+            const width = c.fz_pixmap_width(self.ctx, pix);
+            const height = c.fz_pixmap_height(self.ctx, pix);
+            const samples = c.fz_pixmap_samples(self.ctx, pix);
+
+            var img = try vaxis.zigimg.Image.fromRawPixels(
                 self.allocator,
+                @intCast(width),
+                @intCast(height),
+                samples[0..@intCast(width * height * 3)],
+                .rgb24,
             );
             defer img.deinit();
 
