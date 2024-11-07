@@ -2,6 +2,7 @@ const std = @import("std");
 const vaxis = @import("vaxis");
 const fzwatch = @import("fzwatch");
 const config = @import("config");
+const helpers = @import("helpers.zig");
 const c = @cImport({
     @cInclude("mupdf/fitz.h");
     @cInclude("mupdf/pdf.h");
@@ -193,30 +194,11 @@ pub const FileReader = struct {
         }
 
         if (self.current_page == null) {
-            var ctm = c.fz_scale(1.5, 1.5);
-            ctm = c.fz_pre_translate(ctm, 0, 0);
-            ctm = c.fz_pre_rotate(ctm, 0);
-
-            const pix = c.fz_new_pixmap_from_page_number(
+            var img = try helpers.createImg(
                 self.ctx,
                 self.doc,
                 self.current_page_number,
-                ctm,
-                c.fz_device_rgb(self.ctx),
-                0,
-            ) orelse return error.PixmapCreationFailed;
-            defer c.fz_drop_pixmap(self.ctx, pix);
-
-            const width = c.fz_pixmap_width(self.ctx, pix);
-            const height = c.fz_pixmap_height(self.ctx, pix);
-            const samples = c.fz_pixmap_samples(self.ctx, pix);
-
-            var img = try vaxis.zigimg.Image.fromRawPixels(
                 self.allocator,
-                @intCast(width),
-                @intCast(height),
-                samples[0..@intCast(width * height * 3)],
-                .rgb24,
             );
             defer img.deinit();
 
