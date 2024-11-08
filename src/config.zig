@@ -16,9 +16,9 @@ pub const FileMonitor = struct {
     pub const latency: f16 = 0.1;
 };
 
-/// Cache will be used to cache pages for faster rendering
+/// Sliding window cache
+/// Set to 0 to disable caching
 pub const Cache = struct {
-    pub const enabled: bool = true;
     // Maximum amount of pages to cache ahead
     pub const next_pages: usize = 1;
     // Maximum amount of pages to cache behind

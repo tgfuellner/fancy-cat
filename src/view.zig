@@ -16,7 +16,7 @@ const Event = union(enum) {
     file_changed,
 };
 
-pub const FileReader = struct {
+pub const FileView = struct {
     allocator: std.mem.Allocator,
     should_quit: bool,
     tty: vaxis.Tty,
@@ -32,7 +32,7 @@ pub const FileReader = struct {
     watcher: ?fzwatch.Watcher,
     thread: ?std.Thread,
 
-    pub fn init(allocator: std.mem.Allocator, args: [][]const u8) !FileReader {
+    pub fn init(allocator: std.mem.Allocator, args: [][]const u8) !FileView {
         const ctx = c.fz_new_context(null, null, c.FZ_STORE_UNLIMITED) orelse {
             std.debug.print("Failed to create mupdf context\n", .{});
             return error.FailedToCreateContext;
@@ -89,7 +89,7 @@ pub const FileReader = struct {
         };
     }
 
-    pub fn deinit(self: *FileReader) void {
+    pub fn deinit(self: *FileView) void {
         if (self.watcher) |*w| w.deinit();
         if (self.current_page) |img| self.vx.freeImage(self.tty.anyWriter(), img.id);
         if (self.temp_doc) |doc| c.fz_drop_document(self.ctx, doc);
@@ -112,7 +112,7 @@ pub const FileReader = struct {
         try watcher.start(.{ .latency = config.FileMonitor.latency });
     }
 
-    pub fn run(self: *FileReader) !void {
+    pub fn run(self: *FileView) !void {
         var loop: vaxis.Loop(Event) = .{
             .tty = &self.tty,
             .vaxis = &self.vx,
@@ -145,7 +145,7 @@ pub const FileReader = struct {
         }
     }
 
-    fn handleKeyStroke(self: *FileReader, key: vaxis.Key) !void {
+    fn handleKeyStroke(self: *FileView, key: vaxis.Key) !void {
         if (key.matches(config.KeyMap.quit.key, config.KeyMap.quit.modifiers)) {
             self.should_quit = true;
         } else if (key.matches(config.KeyMap.next.key, config.KeyMap.next.modifiers)) {
@@ -167,7 +167,7 @@ pub const FileReader = struct {
         }
     }
 
-    pub fn update(self: *FileReader, event: Event) !void {
+    pub fn update(self: *FileView, event: Event) !void {
         switch (event) {
             .key_press => |key| {
                 try self.handleKeyStroke(key);
@@ -186,7 +186,7 @@ pub const FileReader = struct {
         }
     }
 
-    pub fn draw(self: *FileReader) !void {
+    pub fn draw(self: *FileView) !void {
         const win = self.vx.window();
         win.clear();
 
@@ -224,10 +224,20 @@ pub const FileReader = struct {
             );
             defer img.deinit();
 
-            self.current_page = try self.vx.transmitImage(
-                self.allocator,
+            try img.convert(.rgb24);
+            const buf = img.rawBytes();
+
+            const base64Encoder = std.base64.standard.Encoder;
+            const b64_buf = try self.allocator.alloc(u8, base64Encoder.calcSize(buf.len));
+            defer self.allocator.free(b64_buf);
+
+            const encoded = base64Encoder.encode(b64_buf, buf);
+
+            self.current_page = try self.vx.transmitPreEncodedImage(
                 self.tty.anyWriter(),
-                &img,
+                encoded,
+                img.width,
+                img.height,
                 .rgb,
             );
         }
