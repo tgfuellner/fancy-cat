@@ -2,7 +2,6 @@ const std = @import("std");
 const vaxis = @import("vaxis");
 const fzwatch = @import("fzwatch");
 const config = @import("config");
-const Cache = @import("cache.zig").Cache;
 const c = @cImport({
     @cInclude("mupdf/fitz.h");
     @cInclude("mupdf/pdf.h");
@@ -32,7 +31,6 @@ pub const FileView = struct {
     current_page: ?vaxis.Image,
     watcher: ?fzwatch.Watcher,
     thread: ?std.Thread,
-    cache: Cache,
 
     pub fn init(allocator: std.mem.Allocator, args: [][]const u8) !FileView {
         const ctx = c.fz_new_context(null, null, c.FZ_STORE_UNLIMITED) orelse {
@@ -79,7 +77,6 @@ pub const FileView = struct {
             .tty = try vaxis.Tty.init(),
             .vx = try vaxis.init(allocator, .{}),
             .current_page_number = current_page_number,
-            .cache = Cache.init(allocator),
             .path = path,
             .ctx = ctx,
             .doc = doc,
