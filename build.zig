@@ -29,6 +29,15 @@ pub fn build(b: *std.Build) void {
     if (target.result.os.tag == .macos) {
         exe.addIncludePath(.{ .cwd_relative = "/opt/homebrew/include" });
         exe.addLibraryPath(.{ .cwd_relative = "/opt/homebrew/lib" });
+    } else if (target.result.os.tag == .linux) {
+        exe.linkSystemLibrary("mupdf-third");
+        exe.linkSystemLibrary("harfbuzz");
+        exe.linkSystemLibrary("freetype");
+        exe.linkSystemLibrary("jbig2dec");
+        exe.linkSystemLibrary("jpeg");
+        exe.linkSystemLibrary("openjp2");
+        exe.linkSystemLibrary("gumbo");
+        exe.linkSystemLibrary("mujs");
     }
 
     exe.linkSystemLibrary("mupdf");

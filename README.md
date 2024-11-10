@@ -16,7 +16,15 @@ brew install mupdf
 ```
 #### Linux
 ``` sh
-apt install mupdf
+apt install \
+    libharfbuzz-dev \
+    libfreetype6-dev \
+    libjbig2dec0-dev \
+    libjpeg-dev \
+    libopenjp2-7-dev \
+    libgumbo-dev \
+    libmujs-dev \
+    zlib1g-dev
 ```
 ### Build
 ```sh
