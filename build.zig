@@ -1,17 +1,25 @@
 const std = @import("std");
 
+fn addMupdfDeps(exe: *std.Build.Step.Compile, target: std.Target) void {
+    if (target.os.tag == .macos) {
+        exe.addIncludePath(.{ .cwd_relative = "/opt/homebrew/include" });
+        exe.addLibraryPath(.{ .cwd_relative = "/opt/homebrew/lib" });
+    } else if (target.os.tag == .linux) {
+        const linux_libs = [_][]const u8{
+            "mupdf-third", "harfbuzz", "freetype",
+            "jbig2dec",    "jpeg",     "openjp2",
+            "gumbo",       "mujs",
+        };
+        for (linux_libs) |lib| exe.linkSystemLibrary(lib);
+    }
+    exe.linkSystemLibrary("mupdf");
+    exe.linkSystemLibrary("z");
+    exe.linkLibC();
+}
+
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
-
-    const vaxis_dep = b.dependency("vaxis", .{
-        .target = target,
-        .optimize = optimize,
-    });
-    const fzwatch_dep = b.dependency("fzwatch", .{
-        .target = target,
-        .optimize = optimize,
-    });
 
     const exe = b.addExecutable(.{
         .name = "fancy-cat",
@@ -20,40 +28,19 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    exe.root_module.addImport("vaxis", vaxis_dep.module("vaxis"));
-    exe.root_module.addImport("fzwatch", fzwatch_dep.module("fzwatch"));
+    const deps = .{
+        .vaxis = b.dependency("vaxis", .{ .target = target, .optimize = optimize }),
+        .fzwatch = b.dependency("fzwatch", .{ .target = target, .optimize = optimize }),
+    };
 
-    const config = b.addModule("config", .{ .root_source_file = b.path("src/config.zig") });
-    exe.root_module.addImport("config", config);
+    exe.root_module.addImport("vaxis", deps.vaxis.module("vaxis"));
+    exe.root_module.addImport("fzwatch", deps.fzwatch.module("fzwatch"));
+    exe.root_module.addImport("config", b.addModule("config", .{ .root_source_file = b.path("src/config.zig") }));
 
-    if (target.result.os.tag == .macos) {
-        exe.addIncludePath(.{ .cwd_relative = "/opt/homebrew/include" });
-        exe.addLibraryPath(.{ .cwd_relative = "/opt/homebrew/lib" });
-    } else if (target.result.os.tag == .linux) {
-        exe.linkSystemLibrary("mupdf-third");
-        exe.linkSystemLibrary("harfbuzz");
-        exe.linkSystemLibrary("freetype");
-        exe.linkSystemLibrary("jbig2dec");
-        exe.linkSystemLibrary("jpeg");
-        exe.linkSystemLibrary("openjp2");
-        exe.linkSystemLibrary("gumbo");
-        exe.linkSystemLibrary("mujs");
-    }
-
-    exe.linkSystemLibrary("mupdf");
-    exe.linkSystemLibrary("z");
-    exe.linkLibC();
-
+    addMupdfDeps(exe, target.result);
     b.installArtifact(exe);
 
     const run_cmd = b.addRunArtifact(exe);
-
-    run_cmd.step.dependOn(b.getInstallStep());
-
-    if (b.args) |args| {
-        run_cmd.addArgs(args);
-    }
-
-    const run_step = b.step("run", "Run the app");
-    run_step.dependOn(&run_cmd.step);
+    if (b.args) |args| run_cmd.addArgs(args);
+    b.step("run", "Run the app").dependOn(&run_cmd.step);
 }
