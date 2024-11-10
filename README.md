@@ -39,7 +39,7 @@ zig build run -- <path-to-pdf> <optional-page-number>
 - [x] Navigate pages
 - [x] Double buffering
 - [x] MacOS support
-- [ ] Linux support
+- [x] Linux support
 - [ ] Zoom
 - [ ] Ghostty support
 - [ ] Cache
