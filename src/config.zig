@@ -15,12 +15,3 @@ pub const FileMonitor = struct {
     // Amount of time to wait inbetween polling for file changes
     pub const latency: f16 = 0.1;
 };
-
-/// Sliding window cache
-/// Set to 0 to disable caching
-pub const Cache = struct {
-    // Maximum amount of pages to cache ahead
-    pub const next_pages: usize = 1;
-    // Maximum amount of pages to cache behind
-    pub const prev_pages: usize = 1;
-};
