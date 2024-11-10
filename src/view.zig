@@ -197,7 +197,7 @@ pub const FileView = struct {
         }
 
         if (self.current_page == null) {
-            var ctm = c.fz_scale(1.5, 1.5);
+            var ctm = c.fz_scale(2, 2);
             ctm = c.fz_pre_translate(ctm, 0, 0);
             ctm = c.fz_pre_rotate(ctm, 0);
 
