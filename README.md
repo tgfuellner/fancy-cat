@@ -43,3 +43,4 @@ zig build run -- <path-to-pdf> <optional-page-number>
 - [ ] Zoom
 - [ ] Ghostty support
 - [ ] Cache
+- [ ] Status bar
