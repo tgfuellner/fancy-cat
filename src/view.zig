@@ -225,20 +225,10 @@ pub const FileView = struct {
             );
             defer img.deinit();
 
-            try img.convert(.rgb24);
-            const buf = img.rawBytes();
-
-            const base64Encoder = std.base64.standard.Encoder;
-            const b64_buf = try self.allocator.alloc(u8, base64Encoder.calcSize(buf.len));
-            defer self.allocator.free(b64_buf);
-
-            const encoded = base64Encoder.encode(b64_buf, buf);
-
-            self.current_page = try self.vx.transmitPreEncodedImage(
+            self.current_page = try self.vx.transmitImage(
+                self.allocator,
                 self.tty.anyWriter(),
-                encoded,
-                @intCast(img.width),
-                @intCast(img.height),
+                &img,
                 .rgb,
             );
         }
