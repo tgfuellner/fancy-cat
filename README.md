@@ -1,6 +1,6 @@
 # fancy-cat
 A (blazingly-fast) PDF viewer for terminals using the Kitty image protocol (written in Zig).
-![demo](https://github.com/user-attachments/assets/32393f0a-2cc3-438d-8c4e-870317714c2a)[^1]
+![demo](https://github.com/user-attachments/assets/b1edc9d2-3b1f-437d-9b48-c196d22fcbbd) [^1]
 [^1]: This demo shows me editing a Typst file that automatically compiles with each change, prompting fancy-cat to re-render whenever the PDF updates.
 > [!NOTE]  
 > This project is under active development
