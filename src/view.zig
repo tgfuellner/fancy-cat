@@ -210,6 +210,7 @@ pub const FileView = struct {
                 0,
             ) orelse return error.PixmapCreationFailed;
             defer c.fz_drop_pixmap(self.ctx, pix);
+            if (config.Appearance.darkmode) c.fz_invert_pixmap(self.ctx, pix);
 
             const width = c.fz_pixmap_width(self.ctx, pix);
             const height = c.fz_pixmap_height(self.ctx, pix);

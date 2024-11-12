@@ -15,3 +15,7 @@ pub const FileMonitor = struct {
     // Amount of time to wait inbetween polling for file changes
     pub const latency: f16 = 0.1;
 };
+
+pub const Appearance = struct {
+    pub const darkmode: bool = false;
+};
