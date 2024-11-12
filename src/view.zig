@@ -237,8 +237,8 @@ pub const FileView = struct {
             self.current_page = try self.vx.transmitPreEncodedImage(
                 self.tty.anyWriter(),
                 encoded,
-                img.width,
-                img.height,
+                @intCast(img.width),
+                @intCast(img.height),
                 .rgb,
             );
         }
