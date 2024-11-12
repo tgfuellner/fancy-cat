@@ -46,3 +46,4 @@ zig build run -- <path-to-pdf> <optional-page-number>
 - [ ] Ghostty support
 - [ ] Cache
 - [ ] Status bar
+- [ ] Synctex
