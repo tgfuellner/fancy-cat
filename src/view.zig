@@ -267,13 +267,13 @@ pub const FileView = struct {
                 @as(f32, @floatFromInt(winsize.x_pixel)) / bound.x1,
                 @as(f32, @floatFromInt(winsize.y_pixel)) / bound.y1,
             );
-            if (self.zoom == 1.0) self.zoom = scale;
+            if (self.zoom == 1.0) self.zoom = scale * config.Appearance.size;
 
             const bbox = c.fz_make_irect(
                 0,
                 0,
-                @intFromFloat(bound.x1 * scale * config.Appearance.size),
-                @intFromFloat(bound.y1 * scale * config.Appearance.size),
+                @intFromFloat(bound.x1 * self.zoom),
+                @intFromFloat(bound.y1 * self.zoom),
             );
             const pix = c.fz_new_pixmap_with_bbox(self.ctx, c.fz_device_rgb(self.ctx), bbox, null, 0);
             c.fz_clear_pixmap_with_value(self.ctx, pix, 0xFF);
