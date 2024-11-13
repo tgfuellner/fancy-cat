@@ -267,8 +267,6 @@ pub const FileView = struct {
 
             self.zoom = @max(self.zoom, config.Appearance.zoom);
             // TODO clamp offset
-            self.x_offset = @max(@as(f32, @floatFromInt(-bbox.x1)), @min(0, self.x_offset));
-            self.y_offset = @max(@as(f32, @floatFromInt(-bbox.y1)), @min(0, self.y_offset));
 
             var ctm = c.fz_scale(self.zoom, self.zoom);
             ctm = c.fz_pre_translate(ctm, self.x_offset, self.y_offset);
@@ -279,8 +277,8 @@ pub const FileView = struct {
 
             if (config.Appearance.darkmode) c.fz_invert_pixmap(self.ctx, pix);
 
-            const width = c.fz_pixmap_width(self.ctx, pix);
-            const height = c.fz_pixmap_height(self.ctx, pix);
+            const width = bbox.x1;
+            const height = bbox.y1;
             const samples = c.fz_pixmap_samples(self.ctx, pix);
 
             var img = try vaxis.zigimg.Image.fromRawPixels(
