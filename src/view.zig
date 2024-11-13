@@ -220,9 +220,6 @@ pub const FileView = struct {
             self.handle_scroll(.Left);
         } else if (key.matches(km.scroll_right.key, km.scroll_right.modifiers)) {
             self.handle_scroll(.Right);
-        } else if (key.matches(km.undo.key, km.undo.modifiers)) {
-            self.reset_zoom_and_scroll();
-            self.current_page = null;
         }
     }
 
