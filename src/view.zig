@@ -33,6 +33,7 @@ pub const FileView = struct {
     watcher: ?fzwatch.Watcher,
     thread: ?std.Thread,
     zoom: f32,
+    size: f32,
     y_offset: f32,
     x_offset: f32,
 
@@ -90,7 +91,8 @@ pub const FileView = struct {
             .temp_doc = null,
             .mouse = null,
             .thread = null,
-            .zoom = 1.0,
+            .zoom = 0,
+            .size = 0,
             .y_offset = 0,
             .x_offset = 0,
         };
@@ -153,7 +155,7 @@ pub const FileView = struct {
     }
 
     fn reset_zoom_and_scroll(self: *FileView) void {
-        self.zoom = 1.0;
+        self.size = 0;
         self.y_offset = 0;
         self.x_offset = 0;
     }
@@ -267,17 +269,19 @@ pub const FileView = struct {
                 @as(f32, @floatFromInt(winsize.x_pixel)) / bound.x1,
                 @as(f32, @floatFromInt(winsize.y_pixel)) / bound.y1,
             );
-            if (self.zoom == 1.0) self.zoom = scale * config.Appearance.size;
+            if (self.size == 0) self.size = scale * config.Appearance.size;
+            if (self.zoom == 0) self.zoom = self.size;
 
             const bbox = c.fz_make_irect(
                 0,
                 0,
-                @intFromFloat(bound.x1 * self.zoom),
-                @intFromFloat(bound.y1 * self.zoom),
+                @intFromFloat(bound.x1 * self.size),
+                @intFromFloat(bound.y1 * self.size),
             );
             const pix = c.fz_new_pixmap_with_bbox(self.ctx, c.fz_device_rgb(self.ctx), bbox, null, 0);
             c.fz_clear_pixmap_with_value(self.ctx, pix, 0xFF);
 
+            self.zoom = @max(self.zoom, self.size);
             // TODO clamp offset
 
             var ctm = c.fz_scale(self.zoom, self.zoom);
