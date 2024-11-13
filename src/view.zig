@@ -156,6 +156,7 @@ pub const FileView = struct {
 
     fn reset_zoom_and_scroll(self: *FileView) void {
         self.size = 0;
+        self.zoom = 0;
         self.y_offset = 0;
         self.x_offset = 0;
     }
