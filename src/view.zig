@@ -283,7 +283,19 @@ pub const FileView = struct {
             c.fz_clear_pixmap_with_value(self.ctx, pix, 0xFF);
 
             self.zoom = @max(self.zoom, self.size);
-            // TODO clamp offset
+            self.x_offset = @min(0, self.x_offset);
+            self.y_offset = @min(0, self.y_offset);
+
+            const bound_x_offset = bound.x1 - bound.x1 * (self.size / self.zoom);
+            const bound_y_offset = bound.y1 - bound.y1 * (self.size / self.zoom);
+
+            // First clamp to prevent scrolling too far in positive direction
+            self.x_offset = @min(0, self.x_offset);
+            self.y_offset = @min(0, self.y_offset);
+
+            // Then clamp to prevent scrolling too far in negative direction
+            self.x_offset = @max(self.x_offset, -bound_x_offset);
+            self.y_offset = @max(self.y_offset, -bound_y_offset);
 
             var ctm = c.fz_scale(self.zoom, self.zoom);
             ctm = c.fz_pre_translate(ctm, self.x_offset, self.y_offset);
