@@ -90,7 +90,7 @@ pub const FileView = struct {
             .temp_doc = null,
             .mouse = null,
             .thread = null,
-            .zoom = config.Appearance.zoom,
+            .zoom = 1.0,
             .y_offset = 0,
             .x_offset = 0,
         };
@@ -153,7 +153,7 @@ pub const FileView = struct {
     }
 
     fn reset_zoom_and_scroll(self: *FileView) void {
-        self.zoom = config.Appearance.zoom;
+        self.zoom = 1.0;
         self.y_offset = 0;
         self.x_offset = 0;
     }
@@ -229,7 +229,12 @@ pub const FileView = struct {
                 try self.handleKeyStroke(key);
             },
             .mouse => |mouse| self.mouse = mouse,
-            .winsize => |ws| try self.vx.resize(self.allocator, self.tty.anyWriter(), ws),
+            .winsize => |ws| {
+                try self.vx.resize(self.allocator, self.tty.anyWriter(), ws);
+                self.reset_current_page();
+                // XXX prob change this once propper zoom handling
+                self.reset_zoom_and_scroll();
+            },
             .file_changed => {
                 self.temp_doc = c.fz_open_document(self.ctx, self.path.ptr) orelse {
                     std.debug.print("Failed to reload document\n", .{});
@@ -256,16 +261,23 @@ pub const FileView = struct {
             const page = c.fz_load_page(self.ctx, self.doc, self.current_page_number);
             const bound = c.fz_bound_page(self.ctx, page);
 
+            const winsize = try vaxis.Tty.getWinsize(self.tty.fd);
+
+            const scale: f32 = @min(
+                @as(f32, @floatFromInt(winsize.x_pixel)) / bound.x1,
+                @as(f32, @floatFromInt(winsize.y_pixel)) / bound.y1,
+            );
+            if (self.zoom == 1.0) self.zoom = scale;
+
             const bbox = c.fz_make_irect(
                 0,
                 0,
-                @intFromFloat(bound.x1 * config.Appearance.zoom),
-                @intFromFloat(bound.y1 * config.Appearance.zoom),
+                @intFromFloat(bound.x1 * scale * config.Appearance.size),
+                @intFromFloat(bound.y1 * scale * config.Appearance.size),
             );
             const pix = c.fz_new_pixmap_with_bbox(self.ctx, c.fz_device_rgb(self.ctx), bbox, null, 0);
             c.fz_clear_pixmap_with_value(self.ctx, pix, 0xFF);
 
-            self.zoom = @max(self.zoom, config.Appearance.zoom);
             // TODO clamp offset
 
             var ctm = c.fz_scale(self.zoom, self.zoom);

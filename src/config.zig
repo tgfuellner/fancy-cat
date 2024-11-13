@@ -22,8 +22,9 @@ pub const FileMonitor = struct {
 
 pub const Appearance = struct {
     pub const darkmode: bool = false;
-    pub const zoom: f32 = 2.0;
-    // amount to zoom in/out by
+    // size of the pdf
+    // 1 is the whole screen
+    pub const size: f32 = 0.90;
     pub const zoom_step: f32 = 0.25;
     pub const scroll_step: f32 = 25.0;
 };
