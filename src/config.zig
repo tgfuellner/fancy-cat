@@ -21,7 +21,7 @@ pub const FileMonitor = struct {
 };
 
 pub const Appearance = struct {
-    pub const darkmode: bool = true;
+    pub const darkmode: bool = false;
     // size of the pdf
     // 1 is the whole screen
     pub const size: f32 = 0.90;
