@@ -16,6 +16,7 @@ const Event = union(enum) {
     file_changed,
 };
 
+// TODO split pdf and view
 pub const FileView = struct {
     allocator: std.mem.Allocator,
     should_quit: bool,
@@ -31,6 +32,9 @@ pub const FileView = struct {
     current_page: ?vaxis.Image,
     watcher: ?fzwatch.Watcher,
     thread: ?std.Thread,
+    zoom: f32,
+    y_offset: f32,
+    x_offset: f32,
 
     pub fn init(allocator: std.mem.Allocator, args: [][]const u8) !FileView {
         const ctx = c.fz_new_context(null, null, c.FZ_STORE_UNLIMITED) orelse {
@@ -86,6 +90,9 @@ pub const FileView = struct {
             .temp_doc = null,
             .mouse = null,
             .thread = null,
+            .zoom = config.Appearance.zoom,
+            .y_offset = 0,
+            .x_offset = 0,
         };
     }
 
@@ -145,25 +152,74 @@ pub const FileView = struct {
         }
     }
 
+    fn reset_zoom_and_scroll(self: *FileView) void {
+        self.zoom = config.Appearance.zoom;
+        self.y_offset = 0;
+        self.x_offset = 0;
+    }
+
+    fn reset_current_page(self: *FileView) void {
+        if (self.current_page) |img| {
+            self.vx.freeImage(self.tty.anyWriter(), img.id);
+            self.current_page = null;
+        }
+    }
+
+    const ScrollDirection = enum {
+        Up,
+        Down,
+        Left,
+        Right,
+    };
+
+    fn handle_scroll(self: *FileView, direction: ScrollDirection) void {
+        const step = config.Appearance.scroll_step;
+        switch (direction) {
+            .Up => self.y_offset += step,
+            .Down => self.y_offset -= step,
+            .Left => self.x_offset += step,
+            .Right => self.x_offset -= step,
+        }
+        self.current_page = null;
+    }
+
+    fn change_page(self: *FileView, delta: i32) void {
+        const new_page = @as(i32, @intCast(self.current_page_number)) + delta;
+        const valid_page = new_page >= 0 and new_page < self.total_pages;
+
+        if (valid_page) {
+            self.current_page_number = @as(u16, @intCast(new_page));
+            self.reset_current_page();
+            self.reset_zoom_and_scroll();
+        }
+    }
+
     fn handleKeyStroke(self: *FileView, key: vaxis.Key) !void {
-        if (key.matches(config.KeyMap.quit.key, config.KeyMap.quit.modifiers)) {
+        const km = config.KeyMap;
+
+        if (key.matches(km.quit.key, km.quit.modifiers)) {
             self.should_quit = true;
-        } else if (key.matches(config.KeyMap.next.key, config.KeyMap.next.modifiers)) {
-            if (self.current_page_number < self.total_pages - 1) {
-                self.current_page_number += 1;
-                if (self.current_page) |img| {
-                    self.vx.freeImage(self.tty.anyWriter(), img.id);
-                    self.current_page = null;
-                }
-            }
-        } else if (key.matches(config.KeyMap.prev.key, config.KeyMap.prev.modifiers)) {
-            if (self.current_page_number > 0) {
-                self.current_page_number -= 1;
-                if (self.current_page) |img| {
-                    self.vx.freeImage(self.tty.anyWriter(), img.id);
-                    self.current_page = null;
-                }
-            }
+        } else if (key.matches(km.next.key, km.next.modifiers)) {
+            self.change_page(1);
+        } else if (key.matches(km.prev.key, km.prev.modifiers)) {
+            self.change_page(-1);
+        } else if (key.matches(km.zoom_in.key, km.zoom_in.modifiers)) {
+            self.zoom *= (config.Appearance.zoom_step + 1);
+            self.current_page = null;
+        } else if (key.matches(km.zoom_out.key, km.zoom_out.modifiers)) {
+            self.zoom /= (config.Appearance.zoom_step + 1);
+            self.current_page = null;
+        } else if (key.matches(km.scroll_up.key, km.scroll_up.modifiers)) {
+            self.handle_scroll(.Up);
+        } else if (key.matches(km.scroll_down.key, km.scroll_down.modifiers)) {
+            self.handle_scroll(.Down);
+        } else if (key.matches(km.scroll_left.key, km.scroll_left.modifiers)) {
+            self.handle_scroll(.Left);
+        } else if (key.matches(km.scroll_right.key, km.scroll_right.modifiers)) {
+            self.handle_scroll(.Right);
+        } else if (key.matches(km.undo.key, km.undo.modifiers)) {
+            self.reset_zoom_and_scroll();
+            self.current_page = null;
         }
     }
 
@@ -197,19 +253,30 @@ pub const FileView = struct {
         }
 
         if (self.current_page == null) {
-            var ctm = c.fz_scale(2, 2);
-            ctm = c.fz_pre_translate(ctm, 0, 0);
-            ctm = c.fz_pre_rotate(ctm, 0);
+            const page = c.fz_load_page(self.ctx, self.doc, self.current_page_number);
+            const bound = c.fz_bound_page(self.ctx, page);
 
-            const pix = c.fz_new_pixmap_from_page_number(
-                self.ctx,
-                self.doc,
-                self.current_page_number,
-                ctm,
-                c.fz_device_rgb(self.ctx),
+            const bbox = c.fz_make_irect(
                 0,
-            ) orelse return error.PixmapCreationFailed;
-            defer c.fz_drop_pixmap(self.ctx, pix);
+                0,
+                @intFromFloat(bound.x1 * config.Appearance.zoom),
+                @intFromFloat(bound.y1 * config.Appearance.zoom),
+            );
+            const pix = c.fz_new_pixmap_with_bbox(self.ctx, c.fz_device_rgb(self.ctx), bbox, null, 0);
+            c.fz_clear_pixmap_with_value(self.ctx, pix, 0xFF);
+
+            self.zoom = @max(self.zoom, config.Appearance.zoom);
+            // TODO clamp offset
+            self.x_offset = @max(@as(f32, @floatFromInt(-bbox.x1)), @min(0, self.x_offset));
+            self.y_offset = @max(@as(f32, @floatFromInt(-bbox.y1)), @min(0, self.y_offset));
+
+            var ctm = c.fz_scale(self.zoom, self.zoom);
+            ctm = c.fz_pre_translate(ctm, self.x_offset, self.y_offset);
+
+            const dev = c.fz_new_draw_device(self.ctx, ctm, pix);
+            c.fz_run_page(self.ctx, page, dev, c.fz_identity, null);
+            c.fz_close_device(self.ctx, dev);
+
             if (config.Appearance.darkmode) c.fz_invert_pixmap(self.ctx, pix);
 
             const width = c.fz_pixmap_width(self.ctx, pix);
@@ -224,6 +291,10 @@ pub const FileView = struct {
                 .rgb24,
             );
             defer img.deinit();
+
+            if (self.current_page) |prev_img| {
+                self.vx.freeImage(self.tty.anyWriter(), prev_img.id);
+            }
 
             self.current_page = try self.vx.transmitImage(
                 self.allocator,

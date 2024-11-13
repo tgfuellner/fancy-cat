@@ -42,7 +42,7 @@ zig build run -- <path-to-pdf> <optional-page-number>
 - [x] MacOS support
 - [x] Linux support
 - [x] Dark-mode
-- [ ] Zoom
+- [x] Zoom
 - [ ] Ghostty support
 - [ ] Cache
 - [ ] Status bar
