@@ -47,3 +47,4 @@ zig build run -- <path-to-pdf> <optional-page-number>
 - [ ] Cache
 - [ ] Status bar
 - [ ] Synctex
+- [ ] Search
