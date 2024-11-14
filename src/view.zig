@@ -25,6 +25,7 @@ pub const FileView = struct {
     mouse: ?vaxis.Mouse,
     current_page_number: u16,
     path: []const u8,
+    page_info_text: []u8 = &[_]u8{},
     ctx: [*c]c.fz_context,
     doc: [*c]c.fz_document,
     temp_doc: ?[*c]c.fz_document,
@@ -95,10 +96,12 @@ pub const FileView = struct {
             .size = 0,
             .y_offset = 0,
             .x_offset = 0,
+            .page_info_text = &[_]u8{},
         };
     }
 
     pub fn deinit(self: *FileView) void {
+        if (self.page_info_text.len > 0) self.allocator.free(self.page_info_text);
         if (self.watcher) |*w| w.deinit();
         if (self.current_page) |img| self.vx.freeImage(self.tty.anyWriter(), img.id);
         if (self.temp_doc) |doc| c.fz_drop_document(self.ctx, doc);
@@ -345,15 +348,19 @@ pub const FileView = struct {
             .{ .col_offset = 1 },
         );
 
-        var page_info_buf: [32]u8 = undefined;
-        const page_info = try std.fmt.bufPrint(&page_info_buf, "{d}:{d}", .{
-            self.current_page_number + 1,
-            self.total_pages,
-        });
+        if (self.page_info_text.len > 0) {
+            self.allocator.free(self.page_info_text);
+        }
+
+        self.page_info_text = try std.fmt.allocPrint(
+            self.allocator,
+            "{d}:{d}",
+            .{ self.current_page_number + 1, self.total_pages },
+        );
 
         _ = status_bar.print(
-            &.{.{ .text = page_info, .style = config.Appearance.status_bar }},
-            .{ .col_offset = @intCast(win.width - page_info.len - 1) },
+            &.{.{ .text = self.page_info_text, .style = config.Appearance.status_bar }},
+            .{ .col_offset = @intCast(win.width - self.page_info_text.len - 1) },
         );
     }
 
