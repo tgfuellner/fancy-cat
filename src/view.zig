@@ -176,7 +176,7 @@ pub const FileView = struct {
     };
 
     fn handle_scroll(self: *FileView, direction: ScrollDirection) void {
-        const step = config.Appearance.scroll_step;
+        const step = config.General.scroll_step;
         switch (direction) {
             .Up => self.y_offset += step,
             .Down => self.y_offset -= step,
@@ -207,10 +207,10 @@ pub const FileView = struct {
         } else if (key.matches(km.prev.key, km.prev.modifiers)) {
             self.change_page(-1);
         } else if (key.matches(km.zoom_in.key, km.zoom_in.modifiers)) {
-            self.zoom *= (config.Appearance.zoom_step + 1);
+            self.zoom *= (config.General.zoom_step + 1);
             self.current_page = null;
         } else if (key.matches(km.zoom_out.key, km.zoom_out.modifiers)) {
-            self.zoom /= (config.Appearance.zoom_step + 1);
+            self.zoom /= (config.General.zoom_step + 1);
             self.current_page = null;
         } else if (key.matches(km.scroll_up.key, km.scroll_up.modifiers)) {
             self.handle_scroll(.Up);
@@ -247,10 +247,7 @@ pub const FileView = struct {
         }
     }
 
-    pub fn draw(self: *FileView) !void {
-        const win = self.vx.window();
-        win.clear();
-
+    pub fn draw_current_page(self: *FileView, win: vaxis.Window) !void {
         if (self.temp_doc) |doc| {
             self.doc = doc;
             self.temp_doc = null;
@@ -267,7 +264,7 @@ pub const FileView = struct {
                 @as(f32, @floatFromInt(winsize.x_pixel)) / bound.x1,
                 @as(f32, @floatFromInt(winsize.y_pixel)) / bound.y1,
             );
-            if (self.size == 0) self.size = scale * config.Appearance.size;
+            if (self.size == 0) self.size = scale * config.General.size;
             if (self.zoom == 0) self.zoom = self.size;
 
             const bbox = c.fz_make_irect(
@@ -331,5 +328,39 @@ pub const FileView = struct {
             const center = vaxis.widgets.alignment.center(win, dims.cols, dims.rows);
             try img.draw(center, .{ .scale = .contain });
         }
+    }
+
+    pub fn draw_status_bar(self: *FileView, win: vaxis.Window) !void {
+        const status_bar = win.child(.{
+            .x_off = 0,
+            .y_off = win.height - 2,
+            .width = win.width,
+            .height = 1,
+        });
+
+        status_bar.fill(vaxis.Cell{ .style = config.Appearance.status_bar });
+
+        _ = status_bar.print(
+            &.{.{ .text = self.path, .style = config.Appearance.status_bar }},
+            .{ .col_offset = 1 },
+        );
+
+        var page_info_buf: [32]u8 = undefined;
+        const page_info = try std.fmt.bufPrint(&page_info_buf, "{d}:{d}", .{
+            self.current_page_number + 1,
+            self.total_pages,
+        });
+
+        _ = status_bar.print(
+            &.{.{ .text = page_info, .style = config.Appearance.status_bar }},
+            .{ .col_offset = @intCast(win.width - page_info.len - 1) },
+        );
+    }
+
+    pub fn draw(self: *FileView) !void {
+        const win = self.vx.window();
+        win.clear();
+        try self.draw_current_page(win);
+        try self.draw_status_bar(win);
     }
 };

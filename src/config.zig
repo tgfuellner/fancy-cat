@@ -18,11 +18,18 @@ pub const FileMonitor = struct {
     pub const latency: f16 = 0.1;
 };
 
-pub const Appearance = struct {
-    pub const darkmode: bool = false;
+pub const General = struct {
     // size of the pdf
     // 1 is the whole screen
     pub const size: f32 = 0.90;
     pub const zoom_step: f32 = 0.25;
     pub const scroll_step: f32 = 25.0;
+};
+
+pub const Appearance = struct {
+    pub const darkmode: bool = false;
+    pub const status_bar = .{
+        .bg = .{ .rgb = .{ 216, 74, 74 } },
+        .fg = .{ .rgb = .{ 255, 255, 255 } },
+    };
 };
