@@ -8,7 +8,7 @@ A PDF viewer for terminals using the Kitty image protocol.
 The keymappings and other options can be found and changed in the config file [here](./src/config.zig).
 ## Build Instructions
 ### Requirements
-- Terminal emulator with the Kitty image protocol (e.g. Kitty, WezTerm, Konsole, etc.)
+- Terminal emulator with the Kitty image protocol (e.g. Kitty, Ghostty, WezTerm, etc.)
 - [mupdf](https://mupdf.readthedocs.io/en/latest/quick-start-guide.html)
 #### MacOS
 ``` sh
@@ -43,8 +43,7 @@ zig build run -- <path-to-pdf> <optional-page-number>
 - [x] Linux support
 - [x] Dark-mode
 - [x] Zoom
-- [ ] Ghostty support
-- [ ] Cache
 - [x] Status bar
+- [ ] Cache
 - [ ] Synctex
 - [ ] Search

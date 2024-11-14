@@ -360,7 +360,10 @@ pub const FileView = struct {
     pub fn draw(self: *FileView) !void {
         const win = self.vx.window();
         win.clear();
+
         try self.draw_current_page(win);
-        try self.draw_status_bar(win);
+        if (config.Appearance.status_bar_enabled) {
+            try self.draw_status_bar(win);
+        }
     }
 };

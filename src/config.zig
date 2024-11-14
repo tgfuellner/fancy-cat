@@ -28,6 +28,8 @@ pub const General = struct {
 
 pub const Appearance = struct {
     pub const darkmode: bool = false;
+    // status bar shows the page numbers and file name
+    pub const status_bar_enabled: bool = true;
     pub const status_bar = .{
         .bg = .{ .rgb = .{ 216, 74, 74 } },
         .fg = .{ .rgb = .{ 255, 255, 255 } },
