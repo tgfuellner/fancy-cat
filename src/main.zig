@@ -1,5 +1,5 @@
 const std = @import("std");
-const FileView = @import("view.zig").FileView;
+const FileView = @import("view.zig");
 
 pub fn main() !void {
     const args = try std.process.argsAlloc(std.heap.page_allocator);
