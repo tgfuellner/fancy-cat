@@ -37,11 +37,8 @@ zig build --fetch
 zig build run -- <path-to-pdf> <optional-page-number>
 ```
 ## Features
-- [x] Filewatch
-- [x] Navigate pages
-- [x] Double buffering
-- [x] MacOS support
-- [x] Linux support
+- [x] Filewatch (hot-reload)
+- [x] Custom keymapping
 - [x] Dark-mode
 - [x] Zoom
 - [x] Status bar
