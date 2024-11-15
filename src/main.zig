@@ -1,5 +1,5 @@
 const std = @import("std");
-const FileView = @import("view.zig");
+const View = @import("View.zig");
 
 pub fn main() !void {
     const args = try std.process.argsAlloc(std.heap.page_allocator);
@@ -20,7 +20,7 @@ pub fn main() !void {
     }
     const allocator = gpa.allocator();
 
-    var app = try FileView.init(allocator, args);
+    var app = try View.init(allocator, args);
     defer app.deinit();
 
     try app.run();
