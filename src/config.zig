@@ -19,6 +19,7 @@ pub const FileMonitor = struct {
 };
 
 pub const General = struct {
+    pub const darkmode: bool = false;
     // size of the pdf
     // 1 is the whole screen
     pub const size: f32 = 0.90;
@@ -26,11 +27,10 @@ pub const General = struct {
     pub const scroll_step: f32 = 25.0;
 };
 
-pub const Appearance = struct {
-    pub const darkmode: bool = false;
+pub const StatusBar = struct {
     // status bar shows the page numbers and file name
-    pub const status_bar_enabled: bool = true;
-    pub const status_bar = .{
+    pub const enabled: bool = true;
+    pub const style = .{
         .bg = .{ .rgb = .{ 216, 74, 74 } },
         .fg = .{ .rgb = .{ 255, 255, 255 } },
     };

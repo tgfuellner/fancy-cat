@@ -300,7 +300,7 @@ pub fn draw_current_page(self: *Self, win: vaxis.Window) !void {
         c.fz_run_page(self.ctx, page, dev, c.fz_identity, null);
         c.fz_close_device(self.ctx, dev);
 
-        if (config.Appearance.darkmode) c.fz_invert_pixmap(self.ctx, pix);
+        if (config.General.darkmode) c.fz_invert_pixmap(self.ctx, pix);
 
         const width = bbox.x1;
         const height = bbox.y1;
@@ -342,10 +342,10 @@ pub fn draw_status_bar(self: *Self, win: vaxis.Window) !void {
         .height = 1,
     });
 
-    status_bar.fill(vaxis.Cell{ .style = config.Appearance.status_bar });
+    status_bar.fill(vaxis.Cell{ .style = config.StatusBar.style });
 
     _ = status_bar.print(
-        &.{.{ .text = self.path, .style = config.Appearance.status_bar }},
+        &.{.{ .text = self.path, .style = config.StatusBar.style }},
         .{ .col_offset = 1 },
     );
 
@@ -360,7 +360,7 @@ pub fn draw_status_bar(self: *Self, win: vaxis.Window) !void {
     );
 
     _ = status_bar.print(
-        &.{.{ .text = self.page_info_text, .style = config.Appearance.status_bar }},
+        &.{.{ .text = self.page_info_text, .style = config.StatusBar.style }},
         .{ .col_offset = @intCast(win.width - self.page_info_text.len - 1) },
     );
 }
@@ -370,7 +370,7 @@ pub fn draw(self: *Self) !void {
     win.clear();
 
     try self.draw_current_page(win);
-    if (config.Appearance.status_bar_enabled) {
+    if (config.StatusBar.enabled) {
         try self.draw_status_bar(win);
     }
 }
