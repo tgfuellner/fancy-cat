@@ -23,7 +23,9 @@ pub const General = struct {
     // size of the pdf
     // 1 is the whole screen
     pub const size: f32 = 0.90;
+    // percentage
     pub const zoom_step: f32 = 0.25;
+    // pixels
     pub const scroll_step: f32 = 25.0;
 };
 
