@@ -24,6 +24,7 @@ page_info_text: []u8,
 current_page: ?vaxis.Image,
 watcher: ?fzwatch.Watcher,
 thread: ?std.Thread,
+reload: bool,
 
 pub fn init(allocator: std.mem.Allocator, args: [][]const u8) !Self {
     const path = args[1];
@@ -52,6 +53,7 @@ pub fn init(allocator: std.mem.Allocator, args: [][]const u8) !Self {
         .watcher = watcher,
         .mouse = null,
         .thread = null,
+        .reload = false,
     };
 }
 
@@ -138,22 +140,22 @@ fn handleKeyStroke(self: *Self, key: vaxis.Key) !void {
         }
     } else if (key.matches(km.zoom_in.key, km.zoom_in.modifiers)) {
         self.pdf_handler.adjustZoom(true);
-        self.resetCurrentPage();
+        self.reload = true;
     } else if (key.matches(km.zoom_out.key, km.zoom_out.modifiers)) {
         self.pdf_handler.adjustZoom(false);
-        self.resetCurrentPage();
+        self.reload = true;
     } else if (key.matches(km.scroll_up.key, km.scroll_up.modifiers)) {
         self.pdf_handler.scroll(.Up);
-        self.resetCurrentPage();
+        self.reload = true;
     } else if (key.matches(km.scroll_down.key, km.scroll_down.modifiers)) {
         self.pdf_handler.scroll(.Down);
-        self.resetCurrentPage();
+        self.reload = true;
     } else if (key.matches(km.scroll_left.key, km.scroll_left.modifiers)) {
         self.pdf_handler.scroll(.Left);
-        self.resetCurrentPage();
+        self.reload = true;
     } else if (key.matches(km.scroll_right.key, km.scroll_right.modifiers)) {
         self.pdf_handler.scroll(.Right);
-        self.resetCurrentPage();
+        self.reload = true;
     }
 }
 
@@ -168,13 +170,14 @@ pub fn update(self: *Self, event: Event) !void {
         },
         .file_changed => {
             try self.pdf_handler.reloadDocument();
+            self.reload = true;
         },
     }
 }
 
 pub fn drawCurrentPage(self: *Self, win: vaxis.Window) !void {
-    const reload = self.pdf_handler.commitReload();
-    if (self.current_page == null or reload) {
+    self.pdf_handler.commitReload();
+    if (self.current_page == null or self.reload) {
         const winsize = try vaxis.Tty.getWinsize(self.tty.fd);
         var img = try self.pdf_handler.renderPage(
             self.allocator,
@@ -183,12 +186,19 @@ pub fn drawCurrentPage(self: *Self, win: vaxis.Window) !void {
         );
         defer img.deinit();
 
-        self.current_page = try self.vx.transmitImage(
+        const new_image = try self.vx.transmitImage(
             self.allocator,
             self.tty.anyWriter(),
             &img,
             .rgb,
         );
+
+        if (self.current_page) |old_img| {
+            self.vx.freeImage(self.tty.anyWriter(), old_img.id);
+        }
+
+        self.current_page = new_image;
+        self.reload = false;
     }
 
     if (self.current_page) |img| {

@@ -85,14 +85,12 @@ pub fn reloadDocument(self: *Self) !void {
     self.total_pages = @as(u16, @intCast(c.fz_count_pages(self.ctx, self.temp_doc.?)));
 }
 
-pub fn commitReload(self: *Self) bool {
+pub fn commitReload(self: *Self) void {
     if (self.temp_doc) |doc| {
         c.fz_drop_document(self.ctx, self.doc);
         self.doc = doc;
         self.temp_doc = null;
-        return true;
     }
-    return false;
 }
 
 pub fn renderPage(
