@@ -125,10 +125,14 @@ fn resetCurrentPage(self: *Self) void {
 
 fn handleKeyStroke(self: *Self, key: vaxis.Key) !void {
     const km = config.KeyMap;
-
+    // non reload keys
     if (key.matches(km.quit.key, km.quit.modifiers)) {
         self.should_quit = true;
-    } else if (key.matches(km.next.key, km.next.modifiers)) {
+        return;
+    }
+
+    // reload keys
+    if (key.matches(km.next.key, km.next.modifiers)) {
         if (self.pdf_handler.changePage(1)) {
             self.resetCurrentPage();
             self.pdf_handler.resetZoomAndScroll();
@@ -140,23 +144,19 @@ fn handleKeyStroke(self: *Self, key: vaxis.Key) !void {
         }
     } else if (key.matches(km.zoom_in.key, km.zoom_in.modifiers)) {
         self.pdf_handler.adjustZoom(true);
-        self.reload = true;
     } else if (key.matches(km.zoom_out.key, km.zoom_out.modifiers)) {
         self.pdf_handler.adjustZoom(false);
-        self.reload = true;
     } else if (key.matches(km.scroll_up.key, km.scroll_up.modifiers)) {
         self.pdf_handler.scroll(.Up);
-        self.reload = true;
     } else if (key.matches(km.scroll_down.key, km.scroll_down.modifiers)) {
         self.pdf_handler.scroll(.Down);
-        self.reload = true;
     } else if (key.matches(km.scroll_left.key, km.scroll_left.modifiers)) {
         self.pdf_handler.scroll(.Left);
-        self.reload = true;
     } else if (key.matches(km.scroll_right.key, km.scroll_right.modifiers)) {
         self.pdf_handler.scroll(.Right);
-        self.reload = true;
     }
+
+    self.reload = true;
 }
 
 pub fn update(self: *Self, event: Event) !void {
