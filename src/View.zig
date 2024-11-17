@@ -165,8 +165,8 @@ pub fn update(self: *Self, event: Event) !void {
         .mouse => |mouse| self.mouse = mouse,
         .winsize => |ws| {
             try self.vx.resize(self.allocator, self.tty.anyWriter(), ws);
-            self.resetCurrentPage();
             self.pdf_handler.resetZoomAndScroll();
+            self.reload = true;
         },
         .file_changed => {
             try self.pdf_handler.reloadDocument();
