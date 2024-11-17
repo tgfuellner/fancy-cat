@@ -1,13 +1,9 @@
 const Self = @This();
-
 const std = @import("std");
 const vaxis = @import("vaxis");
 const fzwatch = @import("fzwatch");
 const config = @import("config");
-const c = @cImport({
-    @cInclude("mupdf/fitz.h");
-    @cInclude("mupdf/pdf.h");
-});
+const PdfHandler = @import("PdfHandler.zig");
 
 pub const panic = vaxis.panic_handler;
 
@@ -18,59 +14,26 @@ const Event = union(enum) {
     file_changed,
 };
 
-// TODO split pdf and view
 allocator: std.mem.Allocator,
 should_quit: bool,
 tty: vaxis.Tty,
 vx: vaxis.Vaxis,
 mouse: ?vaxis.Mouse,
-current_page_number: u16,
-path: []const u8,
-page_info_text: []u8 = &[_]u8{},
-ctx: [*c]c.fz_context,
-doc: [*c]c.fz_document,
-temp_doc: ?[*c]c.fz_document,
-total_pages: u16,
+pdf_handler: PdfHandler,
+page_info_text: []u8,
 current_page: ?vaxis.Image,
 watcher: ?fzwatch.Watcher,
 thread: ?std.Thread,
-zoom: f32,
-size: f32,
-y_offset: f32,
-x_offset: f32,
 
 pub fn init(allocator: std.mem.Allocator, args: [][]const u8) !Self {
-    const ctx = c.fz_new_context(null, null, c.FZ_STORE_UNLIMITED) orelse {
-        std.debug.print("Failed to create mupdf context\n", .{});
-        return error.FailedToCreateContext;
-    };
-    errdefer c.fz_drop_context(ctx);
-    c.fz_register_document_handlers(ctx);
-    // XXX figure out errors instead of ignoring them lol
-    c.fz_set_error_callback(ctx, null, null);
-    c.fz_set_warning_callback(ctx, null, null);
-
     const path = args[1];
-    const doc = c.fz_open_document(ctx, path.ptr) orelse {
-        const err_msg = c.fz_caught_message(ctx);
-        std.debug.print("Failed to open document: {s}\n", .{err_msg});
-        return error.FailedToOpenDocument;
-    };
-    errdefer c.fz_drop_document(ctx, doc);
+    const initial_page = if (args.len == 3)
+        try std.fmt.parseInt(u16, args[2], 10)
+    else
+        null;
 
-    const total_pages = @as(u16, @intCast(c.fz_count_pages(ctx, doc)));
-    const current_page_number = blk: {
-        if (args.len == 3) {
-            const page = try std.fmt.parseInt(u16, args[2], 10);
-            if (page < 1 or page > total_pages) {
-                const stderr = std.io.getStdErr().writer();
-                try stderr.writeAll("Invalid page number\n");
-                return error.InvalidPageNumber;
-            }
-            break :blk page - 1;
-        }
-        break :blk 0;
-    };
+    var pdf_handler = try PdfHandler.init(path, initial_page);
+    errdefer pdf_handler.deinit();
 
     var watcher: ?fzwatch.Watcher = null;
     if (config.FileMonitor.enabled) {
@@ -83,21 +46,12 @@ pub fn init(allocator: std.mem.Allocator, args: [][]const u8) !Self {
         .should_quit = false,
         .tty = try vaxis.Tty.init(),
         .vx = try vaxis.init(allocator, .{}),
-        .current_page_number = current_page_number,
-        .path = path,
-        .ctx = ctx,
-        .doc = doc,
-        .total_pages = total_pages,
-        .watcher = watcher,
+        .pdf_handler = pdf_handler,
+        .page_info_text = &[_]u8{},
         .current_page = null,
-        .temp_doc = null,
+        .watcher = watcher,
         .mouse = null,
         .thread = null,
-        .zoom = 0,
-        .size = 0,
-        .y_offset = 0,
-        .x_offset = 0,
-        .page_info_text = &[_]u8{},
     };
 }
 
@@ -105,9 +59,7 @@ pub fn deinit(self: *Self) void {
     if (self.page_info_text.len > 0) self.allocator.free(self.page_info_text);
     if (self.watcher) |*w| w.deinit();
     if (self.current_page) |img| self.vx.freeImage(self.tty.anyWriter(), img.id);
-    if (self.temp_doc) |doc| c.fz_drop_document(self.ctx, doc);
-    c.fz_drop_document(self.ctx, self.doc);
-    c.fz_drop_context(self.ctx);
+    self.pdf_handler.deinit();
     self.vx.deinit(self.allocator, self.tty.anyWriter());
     self.tty.deinit();
 }
@@ -158,46 +110,10 @@ pub fn run(self: *Self) !void {
     }
 }
 
-fn reset_zoom_and_scroll(self: *Self) void {
-    self.size = 0;
-    self.zoom = 0;
-    self.y_offset = 0;
-    self.x_offset = 0;
-}
-
-fn reset_current_page(self: *Self) void {
+fn resetCurrentPage(self: *Self) void {
     if (self.current_page) |img| {
         self.vx.freeImage(self.tty.anyWriter(), img.id);
         self.current_page = null;
-    }
-}
-
-const ScrollDirection = enum {
-    Up,
-    Down,
-    Left,
-    Right,
-};
-
-fn handle_scroll(self: *Self, direction: ScrollDirection) void {
-    const step = config.General.scroll_step;
-    switch (direction) {
-        .Up => self.y_offset += step,
-        .Down => self.y_offset -= step,
-        .Left => self.x_offset += step,
-        .Right => self.x_offset -= step,
-    }
-    self.current_page = null;
-}
-
-fn change_page(self: *Self, delta: i32) void {
-    const new_page = @as(i32, @intCast(self.current_page_number)) + delta;
-    const valid_page = new_page >= 0 and new_page < self.total_pages;
-
-    if (valid_page) {
-        self.current_page_number = @as(u16, @intCast(new_page));
-        self.reset_current_page();
-        self.reset_zoom_and_scroll();
     }
 }
 
@@ -207,111 +123,61 @@ fn handleKeyStroke(self: *Self, key: vaxis.Key) !void {
     if (key.matches(km.quit.key, km.quit.modifiers)) {
         self.should_quit = true;
     } else if (key.matches(km.next.key, km.next.modifiers)) {
-        self.change_page(1);
+        if (self.pdf_handler.changePage(1)) {
+            self.resetCurrentPage();
+            self.pdf_handler.resetZoomAndScroll();
+        }
     } else if (key.matches(km.prev.key, km.prev.modifiers)) {
-        self.change_page(-1);
+        if (self.pdf_handler.changePage(-1)) {
+            self.resetCurrentPage();
+            self.pdf_handler.resetZoomAndScroll();
+        }
     } else if (key.matches(km.zoom_in.key, km.zoom_in.modifiers)) {
-        self.zoom *= (config.General.zoom_step + 1);
-        self.current_page = null;
+        self.pdf_handler.adjustZoom(true);
+        self.resetCurrentPage();
     } else if (key.matches(km.zoom_out.key, km.zoom_out.modifiers)) {
-        self.zoom /= (config.General.zoom_step + 1);
-        self.current_page = null;
+        self.pdf_handler.adjustZoom(false);
+        self.resetCurrentPage();
     } else if (key.matches(km.scroll_up.key, km.scroll_up.modifiers)) {
-        self.handle_scroll(.Up);
+        self.pdf_handler.scroll(.Up);
+        self.resetCurrentPage();
     } else if (key.matches(km.scroll_down.key, km.scroll_down.modifiers)) {
-        self.handle_scroll(.Down);
+        self.pdf_handler.scroll(.Down);
+        self.resetCurrentPage();
     } else if (key.matches(km.scroll_left.key, km.scroll_left.modifiers)) {
-        self.handle_scroll(.Left);
+        self.pdf_handler.scroll(.Left);
+        self.resetCurrentPage();
     } else if (key.matches(km.scroll_right.key, km.scroll_right.modifiers)) {
-        self.handle_scroll(.Right);
+        self.pdf_handler.scroll(.Right);
+        self.resetCurrentPage();
     }
 }
 
 pub fn update(self: *Self, event: Event) !void {
     switch (event) {
-        .key_press => |key| {
-            try self.handleKeyStroke(key);
-        },
+        .key_press => |key| try self.handleKeyStroke(key),
         .mouse => |mouse| self.mouse = mouse,
         .winsize => |ws| {
             try self.vx.resize(self.allocator, self.tty.anyWriter(), ws);
-            self.reset_current_page();
-            // XXX prob change this once propper zoom handling
-            self.reset_zoom_and_scroll();
+            self.resetCurrentPage();
+            self.pdf_handler.resetZoomAndScroll();
         },
         .file_changed => {
-            self.temp_doc = c.fz_open_document(self.ctx, self.path.ptr) orelse {
-                std.debug.print("Failed to reload document\n", .{});
-                return;
-            };
-            // XXX check if this can be done more efficient rather than check on every file change
-            // probably check if file attribute has changed
-            self.total_pages = @as(u16, @intCast(c.fz_count_pages(self.ctx, self.temp_doc.?)));
+            try self.pdf_handler.reloadDocument();
+            self.resetCurrentPage();
         },
     }
 }
 
-pub fn draw_current_page(self: *Self, win: vaxis.Window) !void {
-    if (self.temp_doc) |doc| {
-        self.doc = doc;
-        self.temp_doc = null;
-        self.current_page = null;
-    }
+pub fn drawCurrentPage(self: *Self, win: vaxis.Window) !void {
+    self.pdf_handler.commitReload();
 
     if (self.current_page == null) {
-        const page = c.fz_load_page(self.ctx, self.doc, self.current_page_number);
-        const bound = c.fz_bound_page(self.ctx, page);
-
         const winsize = try vaxis.Tty.getWinsize(self.tty.fd);
-
-        const scale: f32 = @min(
-            @as(f32, @floatFromInt(winsize.x_pixel)) / bound.x1,
-            @as(f32, @floatFromInt(winsize.y_pixel)) / bound.y1,
-        );
-        if (self.size == 0) self.size = scale * config.General.size;
-        if (self.zoom == 0) self.zoom = self.size;
-
-        const bbox = c.fz_make_irect(
-            0,
-            0,
-            @intFromFloat(bound.x1 * self.size),
-            @intFromFloat(bound.y1 * self.size),
-        );
-        const pix = c.fz_new_pixmap_with_bbox(self.ctx, c.fz_device_rgb(self.ctx), bbox, null, 0);
-        c.fz_clear_pixmap_with_value(self.ctx, pix, 0xFF);
-
-        self.zoom = @max(self.zoom, self.size);
-        self.x_offset = @min(0, self.x_offset);
-        self.y_offset = @min(0, self.y_offset);
-
-        const bound_x_offset = bound.x1 - bound.x1 * (self.size / self.zoom);
-        const bound_y_offset = bound.y1 - bound.y1 * (self.size / self.zoom);
-
-        self.x_offset = @min(0, self.x_offset);
-        self.y_offset = @min(0, self.y_offset);
-
-        self.x_offset = @max(self.x_offset, -bound_x_offset);
-        self.y_offset = @max(self.y_offset, -bound_y_offset);
-
-        var ctm = c.fz_scale(self.zoom, self.zoom);
-        ctm = c.fz_pre_translate(ctm, self.x_offset, self.y_offset);
-
-        const dev = c.fz_new_draw_device(self.ctx, ctm, pix);
-        c.fz_run_page(self.ctx, page, dev, c.fz_identity, null);
-        c.fz_close_device(self.ctx, dev);
-
-        if (config.General.darkmode) c.fz_invert_pixmap(self.ctx, pix);
-
-        const width = bbox.x1;
-        const height = bbox.y1;
-        const samples = c.fz_pixmap_samples(self.ctx, pix);
-
-        var img = try vaxis.zigimg.Image.fromRawPixels(
+        var img = try self.pdf_handler.renderPage(
             self.allocator,
-            @intCast(width),
-            @intCast(height),
-            samples[0..@intCast(width * height * 3)],
-            .rgb24,
+            winsize.x_pixel,
+            winsize.y_pixel,
         );
         defer img.deinit();
 
@@ -334,7 +200,7 @@ pub fn draw_current_page(self: *Self, win: vaxis.Window) !void {
     }
 }
 
-pub fn draw_status_bar(self: *Self, win: vaxis.Window) !void {
+pub fn drawStatusBar(self: *Self, win: vaxis.Window) !void {
     const status_bar = win.child(.{
         .x_off = 0,
         .y_off = win.height - 2,
@@ -345,7 +211,7 @@ pub fn draw_status_bar(self: *Self, win: vaxis.Window) !void {
     status_bar.fill(vaxis.Cell{ .style = config.StatusBar.style });
 
     _ = status_bar.print(
-        &.{.{ .text = self.path, .style = config.StatusBar.style }},
+        &.{.{ .text = self.pdf_handler.path, .style = config.StatusBar.style }},
         .{ .col_offset = 1 },
     );
 
@@ -356,7 +222,7 @@ pub fn draw_status_bar(self: *Self, win: vaxis.Window) !void {
     self.page_info_text = try std.fmt.allocPrint(
         self.allocator,
         "{d}:{d}",
-        .{ self.current_page_number + 1, self.total_pages },
+        .{ self.pdf_handler.current_page_number + 1, self.pdf_handler.total_pages },
     );
 
     _ = status_bar.print(
@@ -369,8 +235,8 @@ pub fn draw(self: *Self) !void {
     const win = self.vx.window();
     win.clear();
 
-    try self.draw_current_page(win);
+    try self.drawCurrentPage(win);
     if (config.StatusBar.enabled) {
-        try self.draw_status_bar(win);
+        try self.drawStatusBar(win);
     }
 }
