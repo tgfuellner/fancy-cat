@@ -136,6 +136,7 @@ pub fn renderPage(
     ctm = c.fz_pre_translate(ctm, self.x_offset, self.y_offset);
 
     const dev = c.fz_new_draw_device(self.ctx, ctm, pix);
+    defer c.fz_drop_device(self.ctx, dev);
     c.fz_run_page(self.ctx, page, dev, c.fz_identity, null);
     c.fz_close_device(self.ctx, dev);
 

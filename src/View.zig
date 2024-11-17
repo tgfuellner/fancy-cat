@@ -56,6 +56,10 @@ pub fn init(allocator: std.mem.Allocator, args: [][]const u8) !Self {
 }
 
 pub fn deinit(self: *Self) void {
+    if (self.watcher) |*w| {
+        w.stop();
+        if (self.thread) |thread| thread.join();
+    }
     if (self.page_info_text.len > 0) self.allocator.free(self.page_info_text);
     if (self.watcher) |*w| w.deinit();
     if (self.current_page) |img| self.vx.freeImage(self.tty.anyWriter(), img.id);
