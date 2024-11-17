@@ -59,9 +59,9 @@ pub fn deinit(self: *Self) void {
     if (self.watcher) |*w| {
         w.stop();
         if (self.thread) |thread| thread.join();
+        w.deinit();
     }
     if (self.page_info_text.len > 0) self.allocator.free(self.page_info_text);
-    if (self.watcher) |*w| w.deinit();
     if (self.current_page) |img| self.vx.freeImage(self.tty.anyWriter(), img.id);
     self.pdf_handler.deinit();
     self.vx.deinit(self.allocator, self.tty.anyWriter());
