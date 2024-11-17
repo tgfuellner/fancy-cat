@@ -164,15 +164,13 @@ pub fn update(self: *Self, event: Event) !void {
         },
         .file_changed => {
             try self.pdf_handler.reloadDocument();
-            self.resetCurrentPage();
         },
     }
 }
 
 pub fn drawCurrentPage(self: *Self, win: vaxis.Window) !void {
-    self.pdf_handler.commitReload();
-
-    if (self.current_page == null) {
+    const reload = self.pdf_handler.commitReload();
+    if (self.current_page == null or reload) {
         const winsize = try vaxis.Tty.getWinsize(self.tty.fd);
         var img = try self.pdf_handler.renderPage(
             self.allocator,
@@ -180,10 +178,6 @@ pub fn drawCurrentPage(self: *Self, win: vaxis.Window) !void {
             winsize.y_pixel,
         );
         defer img.deinit();
-
-        if (self.current_page) |prev_img| {
-            self.vx.freeImage(self.tty.anyWriter(), prev_img.id);
-        }
 
         self.current_page = try self.vx.transmitImage(
             self.allocator,

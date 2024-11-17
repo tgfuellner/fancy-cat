@@ -85,11 +85,14 @@ pub fn reloadDocument(self: *Self) !void {
     self.total_pages = @as(u16, @intCast(c.fz_count_pages(self.ctx, self.temp_doc.?)));
 }
 
-pub fn commitReload(self: *Self) void {
+pub fn commitReload(self: *Self) bool {
     if (self.temp_doc) |doc| {
+        c.fz_drop_document(self.ctx, self.doc);
         self.doc = doc;
         self.temp_doc = null;
+        return true;
     }
+    return false;
 }
 
 pub fn renderPage(
@@ -99,6 +102,7 @@ pub fn renderPage(
     window_height: u32,
 ) !vaxis.zigimg.Image {
     const page = c.fz_load_page(self.ctx, self.doc, self.current_page_number);
+    defer c.fz_drop_page(self.ctx, page);
     const bound = c.fz_bound_page(self.ctx, page);
 
     const scale: f32 = @min(
@@ -115,6 +119,7 @@ pub fn renderPage(
         @intFromFloat(bound.y1 * self.size),
     );
     const pix = c.fz_new_pixmap_with_bbox(self.ctx, c.fz_device_rgb(self.ctx), bbox, null, 0);
+    defer c.fz_drop_pixmap(self.ctx, pix);
     c.fz_clear_pixmap_with_value(self.ctx, pix, 0xFF);
 
     self.zoom = @max(self.zoom, self.size);
