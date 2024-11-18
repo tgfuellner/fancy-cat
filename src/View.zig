@@ -64,7 +64,6 @@ pub fn deinit(self: *Self) void {
         w.deinit();
     }
     if (self.page_info_text.len > 0) self.allocator.free(self.page_info_text);
-    if (self.current_page) |img| self.vx.freeImage(self.tty.anyWriter(), img.id);
     self.pdf_handler.deinit();
     self.vx.deinit(self.allocator, self.tty.anyWriter());
     self.tty.deinit();
@@ -186,14 +185,13 @@ pub fn drawCurrentPage(self: *Self, win: vaxis.Window) !void {
         );
         defer img.deinit();
 
-        const new_image = try self.vx.transmitImage(
+        self.current_page = try self.vx.transmitImage(
             self.allocator,
             self.tty.anyWriter(),
             &img,
             .rgb,
         );
 
-        self.current_page = new_image;
         self.reload = false;
     }
 
