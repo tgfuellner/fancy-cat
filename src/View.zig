@@ -193,10 +193,6 @@ pub fn drawCurrentPage(self: *Self, win: vaxis.Window) !void {
             .rgb,
         );
 
-        if (self.current_page) |old_img| {
-            self.vx.freeImage(self.tty.anyWriter(), old_img.id);
-        }
-
         self.current_page = new_image;
         self.reload = false;
     }
