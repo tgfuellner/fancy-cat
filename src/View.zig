@@ -33,7 +33,7 @@ pub fn init(allocator: std.mem.Allocator, args: [][]const u8) !Self {
     else
         null;
 
-    var pdf_handler = try PdfHandler.init(path, initial_page);
+    var pdf_handler = try PdfHandler.init(allocator, path, initial_page);
     errdefer pdf_handler.deinit();
 
     var watcher: ?fzwatch.Watcher = null;
@@ -179,17 +179,18 @@ pub fn drawCurrentPage(self: *Self, win: vaxis.Window) !void {
     self.pdf_handler.commitReload();
     if (self.current_page == null or self.reload) {
         const winsize = try vaxis.Tty.getWinsize(self.tty.fd);
-        var img = try self.pdf_handler.renderPage(
+        const encoded_image = try self.pdf_handler.renderPage(
             self.allocator,
             winsize.x_pixel,
             winsize.y_pixel,
         );
-        defer img.deinit();
+        defer self.allocator.free(encoded_image.base64);
 
-        self.current_page = try self.vx.transmitImage(
-            self.allocator,
+        self.current_page = try self.vx.transmitPreEncodedImage(
             self.tty.anyWriter(),
-            &img,
+            encoded_image.base64,
+            encoded_image.width,
+            encoded_image.height,
             .rgb,
         );
 

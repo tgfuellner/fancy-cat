@@ -22,7 +22,7 @@ pub const General = struct {
     pub const darkmode: bool = false;
     // size of the pdf
     // 1 is the whole screen
-    pub const size: f32 = 0.90;
+    pub const size: f32 = 0.85;
     // percentage
     pub const zoom_step: f32 = 0.25;
     // pixels
