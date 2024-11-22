@@ -1,11 +1,20 @@
-# fancy-cat
-A PDF viewer for terminals using the Kitty image protocol.
-![demo](https://github.com/user-attachments/assets/b1edc9d2-3b1f-437d-9b48-c196d22fcbbd) [^1]
-[^1]: This demo shows me editing a Typst file that automatically compiles with each change, prompting fancy-cat to re-render whenever the PDF updates.
-> [!NOTE]  
-> This project is under active development
+<h1>
+<p align="center">
+  📑
+  <br>fancy-cat
+</h1>
+  <p align="center">
+    PDF viewer for terminals using the Kitty image protocol
+    <br />
+  </p>
+</p>
+
+![demo](https://github.com/user-attachments/assets/b1edc9d2-3b1f-437d-9b48-c196d22fcbbd)
 ## Usage
-The keymappings and other options can be found and changed in the config file [here](./src/config.zig).
+```sh
+fancy-cat <path-to-pdf> <optional-page-number>
+```
+Keymappings and other options can be found and changed in ``src/config.zig``.
 ## Build Instructions
 ### Requirements
 - Zig version ``0.13.0``
@@ -31,20 +40,34 @@ apt install \
 > [!IMPORTANT]  
 > On some Linux distributions (e.g., Fedora, Arch), replace `mupdf-third` with `mupdf` in ``build.zig`` to compile successfully.
 ### Build
+1. Fetch dependencies:
 ```sh
 zig build --fetch
+```
+2. Build the project:
+```sh
+zig build --release=fast
+```
+3. Install:  
+```
+# Add to your PATH
+# Linux
+mv zig-out/bin/fancy-cat ~/.local/bin/
+
+# macOS 
+mv zig-out/bin/fancy-cat /usr/local/bin/
 ```
 ### Run
 ```
 zig build run -- <path-to-pdf> <optional-page-number>
 ```
 ## Features
-- [x] Filewatch (hot-reload)
-- [x] Custom keymapping
-- [x] Dark-mode
-- [x] Zoom
-- [x] Status bar
-- [ ] Cache
-- [ ] Search
+- ✅ Filewatch (hot-reload)
+- ✅ Custom keymapping
+- ✅ Dark-mode
+- ✅ Zoom
+- ✅ Status bar
+- 🚧 Cache
+- 🚧 Search
 ## Contributing
 Contributions are welcome.
