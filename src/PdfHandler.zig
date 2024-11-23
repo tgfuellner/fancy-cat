@@ -91,7 +91,11 @@ pub fn reloadDocument(self: *Self) !void {
         std.debug.print("Failed to reload document\n", .{});
         return PdfError.FailedToOpenDocument;
     };
+    // TODO check this more efficient
     self.total_pages = @as(u16, @intCast(c.fz_count_pages(self.ctx, self.temp_doc.?)));
+    if (self.current_page_number >= self.total_pages) {
+        self.current_page_number = self.total_pages - 1;
+    }
 }
 
 pub fn commitReload(self: *Self) void {
