@@ -1,7 +1,7 @@
 const std = @import("std");
 const View = @import("View.zig");
 
-pub const FANCY_CAT_VERSION = "0.1.0";
+pub const FANCY_CAT_VERSION = "0.1.1";
 
 pub fn main() !void {
     const args = try std.process.argsAlloc(std.heap.page_allocator);
