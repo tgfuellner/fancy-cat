@@ -224,7 +224,7 @@ pub fn scroll(self: *Self, direction: ScrollDirection) void {
             }
         },
         .Down => {
-            const translation = self.y_offset - step; 
+            const translation = self.y_offset - step;
             if (self.y_offset > translation) {
                 self.y_offset = translation;
             } else {
@@ -246,7 +246,7 @@ pub fn scroll(self: *Self, direction: ScrollDirection) void {
             } else {
                 self.x_offset = std.math.nextAfter(f32, self.x_offset, -std.math.inf(f32));
             }
-        },            
+        },
     }
 }
 
