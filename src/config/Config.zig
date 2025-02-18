@@ -175,6 +175,7 @@ fn parseKeyBinding(value: ?std.json.Value, allocator: std.mem.Allocator) !?KeyBi
             if (std.mem.eql(u8, mod_str, "ctrl")) {
                 modifiers.ctrl = true;
             }
+            // TODO: Add more modifiers
         }
     }
 
