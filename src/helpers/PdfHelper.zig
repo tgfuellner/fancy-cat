@@ -2,7 +2,7 @@ const Self = @This();
 const std = @import("std");
 const fastb64z = @import("fastb64z");
 const vaxis = @import("vaxis");
-const Config = @import("config/Config.zig");
+const Config = @import("../config/Config.zig");
 const c = @cImport({
     @cInclude("mupdf/fitz.h");
     @cInclude("mupdf/pdf.h");
@@ -265,4 +265,10 @@ pub fn resetZoomAndScroll(self: *Self) void {
     self.zoom = 0;
     self.y_offset = 0;
     self.x_offset = 0;
+}
+
+pub fn goToPage(self: *Self, pageNum: u16) void {
+    if (pageNum >= 1 and pageNum <= self.total_pages) {
+        self.current_page_number = @as(u16, @intCast(pageNum)) - 1;
+    }
 }
