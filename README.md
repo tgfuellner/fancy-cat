@@ -122,7 +122,6 @@ zig build run -- <path-to-pdf> <optional-page-number>
 - ✅ Dark-mode
 - ✅ Zoom
 - ✅ Status bar
-- 🚧 Cache
 - 🚧 Search
 
 ## Contributing
