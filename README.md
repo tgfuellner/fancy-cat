@@ -41,6 +41,10 @@ fancy-cat is available as a package in the AUR ([link](https://aur.archlinux.org
 paru -S fancy-cat
 ```
 
+### Nix
+
+Available as a Nix package [here](https://github.com/freref/fancy-cat-nix).
+
 ## Build Instructions
 
 ### Requirements
