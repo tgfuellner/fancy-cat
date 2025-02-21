@@ -273,25 +273,4 @@ pub const Context = struct {
             self.current_state.command.drawCommandBar(win);
         }
     }
-
-    pub fn executeCommand(self: *Self, cmd: []u8) bool {
-        const cmd_str = std.mem.trim(u8, cmd, " ");
-
-        if (std.mem.eql(u8, cmd_str, "q")) {
-            self.should_quit = true;
-            return true;
-        }
-
-        if (std.fmt.parseInt(u16, cmd_str, 10)) |page_num| {
-            const success = self.pdf_helper.goToPage(page_num);
-            if (success) {
-                self.resetCurrentPage();
-                self.pdf_helper.resetZoomAndScroll();
-                self.reload_page = true;
-            }
-            return true;
-        } else |_| {
-            return false;
-        }
-    }
 };

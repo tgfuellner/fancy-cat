@@ -26,7 +26,7 @@ pub fn handleKeyStroke(self: *Self, key: vaxis.Key, km: Config.KeyMap) !void {
     }
 
     if (key.matches(km.execute_command.codepoint, km.execute_command.mods)) {
-        _ = self.context.executeCommand(self.command_buffer.items);
+        _ = self.executeCommand(self.command_buffer.items);
         self.context.changeState(.view);
         return;
     }
@@ -75,4 +75,25 @@ pub fn drawCommandBar(self: *Self, win: vaxis.Window) void {
     });
     // TODO allow configuring different colour
     cursor.fill(vaxis.Cell{ .style = self.context.config.status_bar.style });
+}
+
+pub fn executeCommand(self: *Self, cmd: []u8) bool {
+    const cmd_str = std.mem.trim(u8, cmd, " ");
+
+    if (std.mem.eql(u8, cmd_str, "q")) {
+        self.context.should_quit = true;
+        return true;
+    }
+
+    if (std.fmt.parseInt(u16, cmd_str, 10)) |page_num| {
+        const success = self.context.pdf_helper.goToPage(page_num);
+        if (success) {
+            self.context.resetCurrentPage();
+            self.context.pdf_helper.resetZoomAndScroll();
+            self.context.reload_page = true;
+        }
+        return true;
+    } else |_| {
+        return false;
+    }
 }
