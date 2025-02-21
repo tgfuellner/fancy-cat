@@ -119,11 +119,13 @@ zig build run -- <path-to-pdf> <optional-page-number>
 ## Features
 
 - ✅ Filewatch (hot-reload)
-- ✅ Custom keymapping
-- ✅ Dark-mode
-- ✅ Zoom
+- ✅ Runtime config
+- ✅ Custom keymappings
+- ✅ Modal interface
+- ✅ Commands
+- ✅ Colorize mode (dark-mode)
+- ✅ Page navigation (zoom, etc.)
 - ✅ Status bar
-- 🚧 Search
 
 ## Contributing
 
