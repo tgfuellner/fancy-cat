@@ -20,8 +20,6 @@ pub fn deinit(self: *Self) void {
 }
 
 pub fn handleKeyStroke(self: *Self, key: vaxis.Key, km: Config.KeyMap) !void {
-    self.context.reload_flags.command_bar = true;
-
     if (key.matches(km.exit_command_mode.codepoint, km.exit_command_mode.mods)) {
         self.context.changeState(.view);
         return;

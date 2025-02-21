@@ -25,27 +25,6 @@ pub const State = union(StateType) {
     command: CommandState,
 };
 
-pub const ReloadFlags = struct {
-    page: bool = false,
-    command_bar: bool = false,
-    status_bar: bool = false,
-
-    // reload everything
-    pub fn reload(self: *ReloadFlags) void {
-        self.page = true;
-        self.command_bar = true;
-        self.status_bar = true;
-    }
-
-    //pub fn clear(self: *ReloadFlags) void {
-    //    self.* = .{};
-    //}
-    //
-    //pub fn shouldReloadAny(self: ReloadFlags) bool {
-    //    return self.page or self.command_bar or self.status_bar or self.layout;
-    //}
-};
-
 pub const Context = struct {
     const Self = @This();
 
@@ -67,7 +46,7 @@ pub const Context = struct {
     thread: ?std.Thread,
     config: Config,
     current_state: State,
-    reload_flags: ReloadFlags,
+    reload_page: bool,
 
     pub fn init(allocator: std.mem.Allocator, args: [][]const u8) !Self {
         const path = args[1];
@@ -100,7 +79,7 @@ pub const Context = struct {
             .thread = null,
             .config = config,
             .current_state = undefined,
-            .reload_flags = .{},
+            .reload_page = false,
         };
     }
 
@@ -211,18 +190,18 @@ pub const Context = struct {
             .winsize => |ws| {
                 try self.vx.resize(self.allocator, self.tty.anyWriter(), ws);
                 self.pdf_helper.resetZoomAndScroll();
-                self.reload_flags.reload();
+                self.reload_page = true;
             },
             .file_changed => {
                 try self.pdf_helper.reloadDocument();
-                self.reload_flags.page = true;
+                self.reload_page = true;
             },
         }
     }
 
     pub fn drawCurrentPage(self: *Self, win: vaxis.Window) !void {
         self.pdf_helper.commitReload();
-        if (self.current_page == null or self.reload_flags.page) {
+        if (self.current_page == null or self.reload_page) {
             const winsize = try vaxis.Tty.getWinsize(self.tty.fd);
             const encoded_image = try self.pdf_helper.renderPage(
                 self.allocator,
@@ -239,7 +218,7 @@ pub const Context = struct {
                 .rgb,
             );
 
-            self.reload_flags.page = false;
+            self.reload_page = false;
         }
 
         if (self.current_page) |img| {
@@ -278,8 +257,6 @@ pub const Context = struct {
             &.{.{ .text = self.page_info_text, .style = self.config.status_bar.style }},
             .{ .col_offset = @intCast(win.width - self.page_info_text.len - 1) },
         );
-
-        if (self.current_state == .command) self.current_state.command.drawCommandBar(win);
     }
 
     pub fn draw(self: *Self) !void {
@@ -287,8 +264,13 @@ pub const Context = struct {
         win.clear();
 
         try self.drawCurrentPage(win);
+
         if (self.config.status_bar.enabled) {
             try self.drawStatusBar(win);
+        }
+
+        if (self.current_state == .command) {
+            self.current_state.command.drawCommandBar(win);
         }
     }
 
@@ -305,7 +287,7 @@ pub const Context = struct {
             if (success) {
                 self.resetCurrentPage();
                 self.pdf_helper.resetZoomAndScroll();
-                self.reload_flags = .{ .page = true, .status_bar = true };
+                self.reload_page = true;
             }
             return true;
         } else |_| {
