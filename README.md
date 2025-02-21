@@ -24,6 +24,7 @@ fancy-cat uses a modal interface similar to Neovim. There are two modes: view mo
 #### Available Commands
 
 - `:<page-number>` - jump to the specified page number
+- `:q` - quit the application
 
 ### Configuration
 

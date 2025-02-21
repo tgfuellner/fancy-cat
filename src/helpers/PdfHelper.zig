@@ -196,9 +196,8 @@ pub fn renderPage(
 
 pub fn changePage(self: *Self, delta: i32) bool {
     const new_page = @as(i32, @intCast(self.current_page_number)) + delta;
-    const valid_page = new_page >= 0 and new_page < self.total_pages;
 
-    if (valid_page) {
+    if (new_page >= 0 and new_page < self.total_pages) {
         self.current_page_number = @as(u16, @intCast(new_page));
         return true;
     }
@@ -267,8 +266,10 @@ pub fn resetZoomAndScroll(self: *Self) void {
     self.x_offset = 0;
 }
 
-pub fn goToPage(self: *Self, pageNum: u16) void {
-    if (pageNum >= 1 and pageNum <= self.total_pages) {
+pub fn goToPage(self: *Self, pageNum: u16) bool {
+    if (pageNum >= 1 and pageNum <= self.total_pages and pageNum != self.current_page_number + 1) {
         self.current_page_number = @as(u16, @intCast(pageNum)) - 1;
+        return true;
     }
+    return false;
 }

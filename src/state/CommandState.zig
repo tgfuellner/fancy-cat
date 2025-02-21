@@ -20,6 +20,8 @@ pub fn deinit(self: *Self) void {
 }
 
 pub fn handleKeyStroke(self: *Self, key: vaxis.Key, km: Config.KeyMap) !void {
+    self.context.reload_flags.command_bar = true;
+
     if (key.matches(km.exit_command_mode.codepoint, km.exit_command_mode.mods)) {
         self.context.changeState(.view);
         return;
@@ -66,4 +68,13 @@ pub fn drawCommandBar(self: *Self, win: vaxis.Window) void {
         },
         .{ .col_offset = 0 },
     );
+
+    const cursor = command_bar.child(.{
+        .x_off = @intCast(self.command_buffer.items.len + 1),
+        .y_off = 0,
+        .width = 1,
+        .height = 1,
+    });
+    // TODO allow configuring different colour
+    cursor.fill(vaxis.Cell{ .style = self.context.config.status_bar.style });
 }
