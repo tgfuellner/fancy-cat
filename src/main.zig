@@ -1,7 +1,7 @@
 const std = @import("std");
 const Context = @import("Context.zig").Context;
 
-pub const FANCY_CAT_VERSION = "0.1.1";
+pub const FANCY_CAT_VERSION = "0.2.0";
 
 pub fn main() !void {
     const args = try std.process.argsAlloc(std.heap.page_allocator);
@@ -16,7 +16,7 @@ pub fn main() !void {
     if (args.len < 2 or args.len > 3) {
         const stderr = std.io.getStdErr().writer();
         try stderr.writeAll("Usage: fancy-cat <path-to-pdf> <optional-page-number>\n");
-        return error.InvalidArguments;
+        return;
     }
 
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
