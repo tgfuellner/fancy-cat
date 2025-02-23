@@ -2,7 +2,8 @@ const Self = @This();
 const std = @import("std");
 const fastb64z = @import("fastb64z");
 const vaxis = @import("vaxis");
-const Config = @import("../config/Config.zig");
+const Config = @import("./config/Config.zig");
+const Cache = @import("./Cache.zig");
 const c = @cImport({
     @cInclude("mupdf/fitz.h");
     @cInclude("mupdf/pdf.h");
@@ -10,7 +11,6 @@ const c = @cImport({
 
 pub const PdfError = error{ FailedToCreateContext, FailedToOpenDocument, InvalidPageNumber };
 pub const ScrollDirection = enum { Up, Down, Left, Right };
-pub const EncodedImage = struct { base64: []const u8, width: u16, height: u16 };
 
 allocator: std.mem.Allocator,
 ctx: [*c]c.fz_context,
@@ -25,8 +25,16 @@ x_offset: f32,
 y_center: f32,
 x_center: f32,
 config: Config,
+cache: Cache,
+check_cache: bool,
 
-pub fn init(allocator: std.mem.Allocator, path: []const u8, initial_page: ?u16, config: Config) !Self {
+pub fn init(
+    allocator: std.mem.Allocator,
+    path: []const u8,
+    initial_page: ?u16,
+    // TODO pass pointer everywhere?
+    config: Config,
+) !Self {
     const ctx = c.fz_new_context(null, null, c.FZ_STORE_UNLIMITED) orelse {
         std.debug.print("Failed to create mupdf context\n", .{});
         return PdfError.FailedToCreateContext;
@@ -66,10 +74,13 @@ pub fn init(allocator: std.mem.Allocator, path: []const u8, initial_page: ?u16, 
         .y_center = 0,
         .x_center = 0,
         .config = config,
+        .cache = Cache.init(allocator, config),
+        .check_cache = true,
     };
 }
 
 pub fn deinit(self: *Self) void {
+    self.cache.deinit();
     if (self.temp_doc) |doc| c.fz_drop_document(self.ctx, doc);
     c.fz_drop_document(self.ctx, self.doc);
     c.fz_drop_context(self.ctx);
@@ -97,10 +108,19 @@ pub fn commitReload(self: *Self) void {
 
 pub fn renderPage(
     self: *Self,
-    allocator: std.mem.Allocator,
     window_width: u32,
     window_height: u32,
-) !EncodedImage {
+) !Cache.EncodedImage {
+    if (self.config.cache.enabled and self.zoom == 0 and self.x_offset == 0 and self.y_offset == 0 and self.check_cache) {
+        if (self.cache.get(.{
+            .colorize = self.config.general.colorize,
+            .page = self.current_page_number,
+        })) |cached| {
+            self.check_cache = false;
+            return cached;
+        }
+    }
+
     const page = c.fz_load_page(self.ctx, self.doc, self.current_page_number);
     defer c.fz_drop_page(self.ctx, page);
     const bound = c.fz_bound_page(self.ctx, page);
@@ -149,35 +169,36 @@ pub fn renderPage(
 
     if (self.config.general.colorize) {
         c.fz_tint_pixmap(self.ctx, pix, self.config.general.black, self.config.general.white);
-    } else {
-        c.fz_tint_pixmap(self.ctx, pix, 0x000000, 0xffffff);
     }
 
-    const width = bbox.x1;
-    const height = bbox.y1;
+    const width = @as(usize, @intCast(@abs(bbox.x1)));
+    const height = @as(usize, @intCast(@abs(bbox.y1)));
     const samples = c.fz_pixmap_samples(self.ctx, pix);
 
-    var img = try vaxis.zigimg.Image.fromRawPixels(
-        allocator,
-        @intCast(width),
-        @intCast(height),
-        samples[0..@intCast(width * height * 3)],
-        .rgb24,
-    );
-    defer img.deinit();
-
-    try img.convert(.rgb24);
-    const buf = img.rawBytes();
-
     const base64Encoder = fastb64z.standard.Encoder;
-    const b64_buf = try self.allocator.alloc(u8, base64Encoder.calcSize(buf.len));
+    const sample_count = width * height * 3;
 
-    const encoded = base64Encoder.encode(b64_buf, buf);
+    const b64_buf = try self.allocator.alloc(u8, base64Encoder.calcSize(sample_count));
+    const encoded = base64Encoder.encode(b64_buf, samples[0..sample_count]);
 
-    return .{
+    var cached = false;
+    if (self.config.cache.enabled) {
+        cached = try self.cache.put(.{
+            .colorize = self.config.general.colorize,
+            .page = self.current_page_number,
+        }, .{
+            .base64 = encoded,
+            .width = @intCast(width),
+            .height = @intCast(height),
+            .cached = true,
+        });
+    }
+
+    return Cache.EncodedImage{
         .base64 = encoded,
-        .width = @intCast(img.width),
-        .height = @intCast(img.height),
+        .width = @intCast(width),
+        .height = @intCast(height),
+        .cached = cached,
     };
 }
 

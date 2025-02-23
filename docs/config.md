@@ -60,3 +60,10 @@ Configure the information bar at screen bottom:
 - `style`: Status bar appearance
   - `bg`: Array of 3 `u8` values [r, g, b] - Text color (0-255)
   - `fg`: Array of 3 `u8` values [r, g, b] - Status bar color (0-255)
+
+## Config
+
+Configure the LRU cache
+
+- `enabled`: `bool` - Allow/disallow caching
+- `max_size`: ìnteger` - Maximum amount of pages cached
