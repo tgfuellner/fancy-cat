@@ -9,6 +9,7 @@ const c = @cImport({
     @cInclude("mupdf/pdf.h");
 });
 
+pub const EncodedImage = struct { base64: []const u8, width: u16, height: u16 };
 pub const PdfError = error{ FailedToCreateContext, FailedToOpenDocument, InvalidPageNumber };
 pub const ScrollDirection = enum { Up, Down, Left, Right };
 
@@ -25,8 +26,6 @@ x_offset: f32,
 y_center: f32,
 x_center: f32,
 config: Config,
-cache: Cache,
-check_cache: bool,
 
 pub fn init(
     allocator: std.mem.Allocator,
@@ -74,13 +73,10 @@ pub fn init(
         .y_center = 0,
         .x_center = 0,
         .config = config,
-        .cache = Cache.init(allocator, config),
-        .check_cache = true,
     };
 }
 
 pub fn deinit(self: *Self) void {
-    self.cache.deinit();
     if (self.temp_doc) |doc| c.fz_drop_document(self.ctx, doc);
     c.fz_drop_document(self.ctx, self.doc);
     c.fz_drop_context(self.ctx);
@@ -111,7 +107,7 @@ pub fn renderPage(
     page_number: u16,
     window_width: u32,
     window_height: u32,
-) !Cache.EncodedImage {
+) !EncodedImage {
     const page = c.fz_load_page(self.ctx, self.doc, page_number);
     defer c.fz_drop_page(self.ctx, page);
     const bound = c.fz_bound_page(self.ctx, page);
@@ -172,48 +168,11 @@ pub fn renderPage(
     const b64_buf = try self.allocator.alloc(u8, base64Encoder.calcSize(sample_count));
     const encoded = base64Encoder.encode(b64_buf, samples[0..sample_count]);
 
-    return Cache.EncodedImage{
+    return EncodedImage{
         .base64 = encoded,
         .width = @intCast(width),
         .height = @intCast(height),
-        .cached = false,
     };
-}
-
-pub fn getCurrentPage(
-    self: *Self,
-    window_width: u32,
-    window_height: u32,
-) !Cache.EncodedImage {
-    const shouldCheckCache = self.config.cache.enabled and
-        self.zoom == 0 and
-        self.x_offset == 0 and
-        self.y_offset == 0 and
-        self.check_cache;
-
-    if (shouldCheckCache) {
-        if (self.cache.get(.{
-            .colorize = self.config.general.colorize,
-            .page = self.current_page_number,
-        })) |cached| {
-            self.check_cache = false;
-            return cached;
-        }
-    }
-
-    var image = try self.renderPage(self.current_page_number, window_width, window_height);
-
-    var cached = false;
-    if (self.config.cache.enabled) {
-        image.cached = true;
-        cached = try self.cache.put(.{
-            .colorize = self.config.general.colorize,
-            .page = self.current_page_number,
-        }, image);
-    }
-
-    image.cached = cached;
-    return image;
 }
 
 pub fn changePage(self: *Self, delta: i32) bool {

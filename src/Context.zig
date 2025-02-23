@@ -5,6 +5,7 @@ const CommandState = @import("states/CommandState.zig");
 const fzwatch = @import("fzwatch");
 const Config = @import("config/Config.zig");
 const PdfHandler = @import("./PdfHandler.zig");
+const Cache = @import("./Cache.zig");
 
 pub const panic = vaxis.panic_handler;
 
@@ -34,6 +35,8 @@ pub const Context = struct {
     config: Config,
     current_state: State,
     reload_page: bool,
+    cache: Cache,
+    check_cache: bool,
 
     pub fn init(allocator: std.mem.Allocator, args: [][]const u8) !Self {
         const path = args[1];
@@ -53,11 +56,14 @@ pub const Context = struct {
             if (watcher) |*w| try w.addFile(path);
         }
 
+        const vx = try vaxis.init(allocator, .{});
+        const tty = try vaxis.Tty.init();
+
         return .{
             .allocator = allocator,
             .should_quit = false,
-            .tty = try vaxis.Tty.init(),
-            .vx = try vaxis.init(allocator, .{}),
+            .tty = tty,
+            .vx = vx,
             .pdf_handler = pdf_handler,
             .page_info_text = &[_]u8{},
             .current_page = null,
@@ -67,6 +73,8 @@ pub const Context = struct {
             .config = config,
             .current_state = undefined,
             .reload_page = false,
+            .cache = Cache.init(allocator, config),
+            .check_cache = true,
         };
     }
 
@@ -80,6 +88,7 @@ pub const Context = struct {
             if (self.thread) |thread| thread.join();
             w.deinit();
         }
+        self.cache.deinit();
         if (self.page_info_text.len > 0) self.allocator.free(self.page_info_text);
         self.pdf_handler.deinit();
         self.vx.deinit(self.allocator, self.tty.anyWriter());
@@ -149,12 +158,9 @@ pub const Context = struct {
     }
 
     pub fn resetCurrentPage(self: *Self) void {
-        if (self.current_page) |img| {
-            self.vx.freeImage(self.tty.anyWriter(), img.id);
-            self.current_page = null;
-            self.pdf_handler.resetZoomAndScroll();
-            self.pdf_handler.check_cache = true;
-        }
+        self.current_page = null;
+        self.pdf_handler.resetZoomAndScroll();
+        self.check_cache = true;
     }
 
     pub fn handleKeyStroke(self: *Self, key: vaxis.Key) !void {
@@ -179,13 +185,64 @@ pub const Context = struct {
             .winsize => |ws| {
                 try self.vx.resize(self.allocator, self.tty.anyWriter(), ws);
                 self.pdf_handler.resetZoomAndScroll();
-                self.pdf_handler.cache.clear();
+                self.cache.clear();
                 self.reload_page = true;
             },
             .file_changed => {
                 try self.pdf_handler.reloadDocument();
                 self.reload_page = true;
             },
+        }
+    }
+
+    pub fn getCurrentPage(
+        self: *Self,
+        window_width: u32,
+        window_height: u32,
+    ) !void {
+        // TODO make this interchangeable with other file formats (no pdf specific logic in context)
+        const shouldCheckCache = self.config.cache.enabled and
+            self.pdf_handler.zoom == 0 and
+            self.pdf_handler.x_offset == 0 and
+            self.pdf_handler.y_offset == 0 and
+            self.check_cache;
+
+        if (shouldCheckCache) {
+            if (self.cache.get(.{
+                .colorize = self.config.general.colorize,
+                .page = self.pdf_handler.current_page_number,
+            })) |cached| {
+                // Once we get the cached image we don't need to check the cache anymore because
+                // The only actions a user can take is zoom or scrolling, but we don't cache those
+                // Or go to the next page, at which point we set check_cache to true again
+                self.check_cache = false;
+                self.current_page = cached.image;
+                return;
+            }
+        }
+
+        const image = try self.pdf_handler.renderPage(
+            self.pdf_handler.current_page_number,
+            window_width,
+            window_height,
+        );
+        defer self.allocator.free(image.base64);
+
+        self.current_page = try self.vx.transmitPreEncodedImage(
+            self.tty.anyWriter(),
+            image.base64,
+            image.width,
+            image.height,
+            .rgb,
+        );
+
+        if (!self.config.cache.enabled) return;
+
+        if (self.current_page) |img| {
+            _ = try self.cache.put(.{
+                .colorize = self.config.general.colorize,
+                .page = self.pdf_handler.current_page_number,
+            }, .{ .image = img });
         }
     }
 
@@ -201,16 +258,7 @@ pub const Context = struct {
                 y_pix -|= 2 * pix_per_row;
             }
 
-            const encoded_image = try self.pdf_handler.getCurrentPage(x_pix, y_pix);
-            defer if (!encoded_image.cached) self.allocator.free(encoded_image.base64);
-
-            self.current_page = try self.vx.transmitPreEncodedImage(
-                self.tty.anyWriter(),
-                encoded_image.base64,
-                encoded_image.width,
-                encoded_image.height,
-                .rgb,
-            );
+            try self.getCurrentPage(x_pix, y_pix);
 
             self.reload_page = false;
         }
@@ -239,24 +287,27 @@ pub const Context = struct {
             .width = win.width,
             .height = 1,
         });
-
         status_bar.fill(vaxis.Cell{ .style = self.config.status_bar.style });
-
+        const mode_text = switch (self.current_state) {
+            .view => "VIS",
+            .command => "CMD",
+        };
         _ = status_bar.print(
-            &.{.{ .text = self.pdf_handler.path, .style = self.config.status_bar.style }},
+            &.{
+                .{ .text = mode_text, .style = self.config.status_bar.style },
+                .{ .text = "   ", .style = self.config.status_bar.style },
+                .{ .text = self.pdf_handler.path, .style = self.config.status_bar.style },
+            },
             .{ .col_offset = 1 },
         );
-
         if (self.page_info_text.len > 0) {
             self.allocator.free(self.page_info_text);
         }
-
         self.page_info_text = try std.fmt.allocPrint(
             self.allocator,
             "{d}:{d}",
             .{ self.pdf_handler.current_page_number + 1, self.pdf_handler.total_pages },
         );
-
         _ = status_bar.print(
             &.{.{ .text = self.page_info_text, .style = self.config.status_bar.style }},
             .{ .col_offset = @intCast(win.width -| self.page_info_text.len -| 1) },
