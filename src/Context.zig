@@ -46,6 +46,7 @@ pub const Context = struct {
             null;
 
         const config = try allocator.create(Config);
+        errdefer allocator.destroy(config);
         config.* = try Config.init(allocator);
 
         var pdf_handler = try PdfHandler.init(allocator, path, initial_page, config);
