@@ -1,6 +1,6 @@
 const std = @import("std");
 
-fn addMupdfDeps(exe: *std.Build.Step.Compile, b: *std.Build, prefix: []const u8) void {
+fn addMupdfStatic(exe: *std.Build.Step.Compile, b: *std.Build, prefix: []const u8) void {
     exe.addIncludePath(.{ .cwd_relative = b.fmt("{s}/include", .{prefix}) });
     exe.addLibraryPath(.{ .cwd_relative = b.fmt("{s}/lib", .{prefix}) });
 
@@ -10,7 +10,7 @@ fn addMupdfDeps(exe: *std.Build.Step.Compile, b: *std.Build, prefix: []const u8)
     exe.linkLibC();
 }
 
-fn addMupdfHomebrew(exe: *std.Build.Step.Compile, target: std.Target) void {
+fn addMupdfDynamic(exe: *std.Build.Step.Compile, target: std.Target) void {
     if (target.os.tag == .macos and target.cpu.arch == .aarch64) {
         exe.addIncludePath(.{ .cwd_relative = "/opt/homebrew/include" });
         exe.addLibraryPath(.{ .cwd_relative = "/opt/homebrew/lib" });
@@ -100,11 +100,11 @@ pub fn build(b: *std.Build) void {
 
     if (useVendorMupdf) {
         exe.step.dependOn(&mupdf_build_step.step);
-        addMupdfDeps(exe, b, location);
+        addMupdfStatic(exe, b, location);
         b.installArtifact(exe);
         b.getInstallStep().dependOn(&mupdf_build_step.step);
     } else {
-        addMupdfHomebrew(exe, target.result);
+        addMupdfDynamic(exe, target.result);
         b.installArtifact(exe);
     }
 
