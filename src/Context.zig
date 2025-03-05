@@ -36,9 +36,9 @@ pub const Context = struct {
     current_state: State,
     reload_page: bool,
     cache: Cache,
-    check_cache: bool,
+    should_check_cache: bool,
 
-    pub fn init(allocator: std.mem.Allocator, args: [][]const u8) !Self {
+    pub fn init(allocator: std.mem.Allocator, args: [][:0]u8) !Self {
         const path = args[1];
         const initial_page = if (args.len == 3)
             try std.fmt.parseInt(u16, args[2], 10)
@@ -74,9 +74,9 @@ pub const Context = struct {
             .watcher_thread = null,
             .config = config,
             .current_state = undefined,
-            .reload_page = false,
+            .reload_page = true,
             .cache = Cache.init(allocator, config),
-            .check_cache = true,
+            .should_check_cache = config.cache.enabled,
         };
     }
 
@@ -163,9 +163,9 @@ pub const Context = struct {
     }
 
     pub fn resetCurrentPage(self: *Self) void {
-        self.current_page = null;
         self.pdf_handler.resetZoomAndScroll();
-        self.check_cache = true;
+        self.should_check_cache = self.config.cache.enabled;
+        self.reload_page = true;
     }
 
     pub fn handleKeyStroke(self: *Self, key: vaxis.Key) !void {
@@ -189,6 +189,7 @@ pub const Context = struct {
             .mouse => |mouse| self.mouse = mouse,
             .winsize => |ws| {
                 try self.vx.resize(self.allocator, self.tty.anyWriter(), ws);
+                self.pdf_handler.default_zoom = 0;
                 self.pdf_handler.resetZoomAndScroll();
                 self.cache.clear();
                 self.reload_page = true;
@@ -201,58 +202,55 @@ pub const Context = struct {
         }
     }
 
-    pub fn getCurrentPage(
+    // TODO make this func interchangeable with other file formats
+    // (no pdf specific logic in context)
+    pub fn getPage(
         self: *Self,
+        page_number: u16,
         window_width: u32,
         window_height: u32,
-    ) !void {
-        // TODO make this interchangeable with other file formats (no pdf specific logic in context)
-        const defaultPage = self.pdf_handler.zoom == 0 and
-            self.pdf_handler.x_offset == 0 and
-            self.pdf_handler.y_offset == 0 and
-            self.config.cache.enabled;
-
-        if (defaultPage and self.check_cache) {
+    ) !vaxis.Image {
+        if (self.should_check_cache) {
             if (self.cache.get(.{
                 .colorize = self.config.general.colorize,
-                .page = self.pdf_handler.current_page_number,
+                .page = page_number,
             })) |cached| {
                 // Once we get the cached image we don't need to check the cache anymore because
                 // The only actions a user can take is zoom or scrolling, but we don't cache those
                 // Or go to the next page, at which point we set check_cache to true again
-                self.check_cache = false;
-                self.current_page = cached.image;
-                return;
+                self.should_check_cache = false;
+                return cached.image;
             }
         }
 
-        const image = try self.pdf_handler.renderPage(
-            self.pdf_handler.current_page_number,
+        const encoded_image = try self.pdf_handler.renderPage(
+            page_number,
             window_width,
             window_height,
         );
-        defer self.allocator.free(image.base64);
+        defer self.allocator.free(encoded_image.base64);
 
-        self.current_page = try self.vx.transmitPreEncodedImage(
+        const image = try self.vx.transmitPreEncodedImage(
             self.tty.anyWriter(),
-            image.base64,
-            image.width,
-            image.height,
+            encoded_image.base64,
+            encoded_image.width,
+            encoded_image.height,
             .rgb,
         );
 
-        if (!defaultPage) return;
+        if (!self.should_check_cache) return image;
 
-        if (self.current_page) |img| {
-            _ = try self.cache.put(.{
-                .colorize = self.config.general.colorize,
-                .page = self.pdf_handler.current_page_number,
-            }, .{ .image = img });
-        }
+        _ = try self.cache.put(.{
+            .colorize = self.config.general.colorize,
+            .page = page_number,
+        }, .{ .image = image });
+        self.should_check_cache = false;
+
+        return image;
     }
 
     pub fn drawCurrentPage(self: *Self, win: vaxis.Window) !void {
-        if (self.current_page == null or self.reload_page) {
+        if (self.reload_page) {
             const winsize = try vaxis.Tty.getWinsize(self.tty.fd);
             const pix_per_col = try std.math.divCeil(u16, win.screen.width_pix, win.screen.width);
             const pix_per_row = try std.math.divCeil(u16, win.screen.height_pix, win.screen.height);
@@ -262,7 +260,11 @@ pub const Context = struct {
                 y_pix -|= 2 * pix_per_row;
             }
 
-            try self.getCurrentPage(x_pix, y_pix);
+            self.current_page = try self.getPage(
+                self.pdf_handler.current_page_number,
+                x_pix,
+                y_pix,
+            );
 
             self.reload_page = false;
         }
