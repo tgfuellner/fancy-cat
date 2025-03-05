@@ -129,7 +129,7 @@ pub fn handleKeyStroke(self: *Self, key: vaxis.Key, km: Config.KeyMap) !void {
             .mods = km.enter_command_mode.mods,
             .handler = struct {
                 fn action(s: *Context) void {
-                    s.changeState(.command);
+                    s.changeMode(.command);
                 }
             }.action,
         },

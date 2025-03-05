@@ -16,8 +16,8 @@ const Event = union(enum) {
     file_changed,
 };
 
-pub const StateType = enum { view, command };
-pub const State = union(StateType) { view: ViewMode, command: CommandMode };
+pub const ModeType = enum { view, command };
+pub const Mode = union(ModeType) { view: ViewMode, command: CommandMode };
 
 pub const Context = struct {
     const Self = @This();
@@ -33,7 +33,7 @@ pub const Context = struct {
     watcher: ?fzwatch.Watcher,
     watcher_thread: ?std.Thread,
     config: *Config,
-    current_state: State,
+    current_mode: Mode,
     reload_page: bool,
     cache: Cache,
     should_check_cache: bool,
@@ -73,7 +73,7 @@ pub const Context = struct {
             .mouse = null,
             .watcher_thread = null,
             .config = config,
-            .current_state = undefined,
+            .current_mode = undefined,
             .reload_page = true,
             .cache = Cache.init(allocator, config),
             .should_check_cache = config.cache.enabled,
@@ -81,7 +81,7 @@ pub const Context = struct {
     }
 
     pub fn deinit(self: *Self) void {
-        switch (self.current_state) {
+        switch (self.current_mode) {
             .command => |*state| state.deinit(),
             .view => {},
         }
@@ -114,7 +114,7 @@ pub const Context = struct {
     }
 
     pub fn run(self: *Self) !void {
-        self.current_state = .{ .view = ViewMode.init(self) };
+        self.current_mode = .{ .view = ViewMode.init(self) };
 
         var loop: vaxis.Loop(Event) = .{
             .tty = &self.tty,
@@ -150,15 +150,15 @@ pub const Context = struct {
         }
     }
 
-    pub fn changeState(self: *Self, new_state: StateType) void {
-        switch (self.current_state) {
+    pub fn changeMode(self: *Self, new_state: ModeType) void {
+        switch (self.current_mode) {
             .command => |*state| state.deinit(),
             .view => {},
         }
 
         switch (new_state) {
-            .view => self.current_state = .{ .view = ViewMode.init(self) },
-            .command => self.current_state = .{ .command = CommandMode.init(self) },
+            .view => self.current_mode = .{ .view = ViewMode.init(self) },
+            .command => self.current_mode = .{ .command = CommandMode.init(self) },
         }
     }
 
@@ -177,7 +177,7 @@ pub const Context = struct {
             return;
         }
 
-        try switch (self.current_state) {
+        try switch (self.current_mode) {
             .view => |*state| state.handleKeyStroke(key, km),
             .command => |*state| state.handleKeyStroke(key, km),
         };
@@ -292,7 +292,7 @@ pub const Context = struct {
             .height = 1,
         });
         status_bar.fill(vaxis.Cell{ .style = self.config.status_bar.style });
-        const mode_text = switch (self.current_state) {
+        const mode_text = switch (self.current_mode) {
             .view => "VIS",
             .command => "CMD",
         };
@@ -331,8 +331,8 @@ pub const Context = struct {
             try self.drawStatusBar(win);
         }
 
-        if (self.current_state == .command) {
-            self.current_state.command.drawCommandBar(win);
+        if (self.current_mode == .command) {
+            self.current_mode.command.drawCommandBar(win);
         }
     }
 };

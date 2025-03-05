@@ -24,13 +24,13 @@ pub fn deinit(self: *Self) void {
 
 pub fn handleKeyStroke(self: *Self, key: vaxis.Key, km: Config.KeyMap) !void {
     if (key.matches(km.exit_command_mode.codepoint, km.exit_command_mode.mods)) {
-        self.context.changeState(.view);
+        self.context.changeMode(.view);
         return;
     }
 
     if (key.matches(km.execute_command.codepoint, km.execute_command.mods)) {
         self.executeCommand(self.text_input.buf.firstHalf());
-        self.context.changeState(.view);
+        self.context.changeMode(.view);
         return;
     }
 
